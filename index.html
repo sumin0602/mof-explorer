@@ -13,6 +13,7 @@ body { margin:0; font-family:'Segoe UI'; background:#020617; color:white; displa
 button { width:100%; padding:8px; margin-top:6px; border-radius:8px; border:none; background:#22c55e; color:black; font-weight:bold; cursor:pointer; }
 button:hover { background:#16a34a; }
 input { width:100%; padding:6px; margin-top:5px; }
+ul { padding-left: 20px; }
 </style>
 </head>
 
@@ -76,18 +77,19 @@ input { width:100%; padding:6px; margin-top:5px; }
   <button onclick="saveScore()">점수 저장</button>
   <ul id="ranking"></ul>
 </div>
+
 </div>
 
 <script>
 let viewer = $3Dmol.createViewer("viewer",{backgroundColor:"#020617"});
-let currentMOF = "HKUST";
+let currentMOF = "";
 let score = 0;
 let player = "";
 let gasAtoms = [];
 
 // 시작
 function startGame(){
-  player = document.getElementById("username").value;
+  player = document.getElementById("username").value || "플레이어";
   score = 0;
   updateUI();
   mission("게임 시작! 금속을 찾아라!");
@@ -96,63 +98,66 @@ function startGame(){
 
 // UI 업데이트
 function updateUI(){
-  document.getElementById("playerInfo").innerText =
-    player + " | Score: " + score;
+  document.getElementById("playerInfo").innerText = player + " | Score: " + score;
 }
 
+// 점수 추가
 function addScore(p){
-  score += p; updateUI();
+  score += p;
+  updateUI();
 }
 
+// 미션
 function mission(t){
   document.getElementById("mission").innerText = t;
 }
 
-// MOF 로드 (GitHub Pages URL)
+// MOF 로드 (로컬 CIF)
 function loadHKUST(){
   currentMOF="HKUST";
   viewer.clear();
-  $3Dmol.download(
-    "https://sumin0602.github.io/mof-explorer/HKUST1.cif", // GitHub Pages 퍼블릭 URL
-    viewer,
-    {},
-    function(){
-      viewer.setStyle({}, {stick:{}});
-      viewer.zoomTo();
-      viewer.render();
-    }
-  );
+  $3Dmol.download("HKUST1.cif", viewer, {}, function(){
+    viewer.setStyle({}, {stick:{}});
+    viewer.zoomTo();
+    viewer.render();
+  });
 }
 
 function loadZIF(){
   currentMOF="ZIF";
   viewer.clear();
-  $3Dmol.download(
-    "https://sumin0602.github.io/mof-explorer/ZIF-8_DDEC.cif", // GitHub Pages 퍼블릭 URL
-    viewer,
-    {},
-    function(){
-      viewer.setStyle({}, {stick:{color:"#facc15"}});
-      viewer.zoomTo();
-      viewer.render();
-    }
-  );
+  $3Dmol.download("ZIF-8_DDEC.cif", viewer, {}, function(){
+    viewer.setStyle({}, {stick:{color:"#facc15"}});
+    viewer.zoomTo();
+    viewer.render();
+  });
 }
 
 // 기능들
 function showMetal(){
   viewer.setStyle({}, {});
-  viewer.setStyle({elem:"Cu"}, {sphere:{color:"cyan"}});
-  viewer.render(); mission("금속 발견!"); addScore(10);
+  if(currentMOF==="HKUST"){
+    viewer.setStyle({elem:"Cu"}, {sphere:{color:"cyan"}});
+  } else if(currentMOF==="ZIF"){
+    viewer.setStyle({elem:"Zn"}, {sphere:{color:"cyan"}});
+  }
+  viewer.render();
+  mission("금속 발견!");
+  addScore(10);
 }
 
 function showLigand(){
   viewer.setStyle({}, {});
   viewer.setStyle({elem:["C","O","H"]}, {stick:{color:"green"}});
-  viewer.render(); addScore(5);
+  viewer.render();
+  addScore(5);
 }
 
-function explorePore(){ viewer.zoom(0.4); viewer.render(); addScore(10); }
+function explorePore(){
+  viewer.zoom(0.4);
+  viewer.render();
+  addScore(10);
+}
 
 function startGas(){
   for(let i=0;i<8;i++){
@@ -160,8 +165,10 @@ function startGas(){
       center:{x:Math.random()*10,y:Math.random()*10,z:Math.random()*10},
       radius:0.5,
       color:"yellow"
-    }); gasAtoms.push(a);
+    });
+    gasAtoms.push(a);
   }
+
   setInterval(()=>{
     gasAtoms.forEach(a=>{
       a.center.x += (Math.random()-0.5);
@@ -170,18 +177,26 @@ function startGas(){
     });
     viewer.render();
   },200);
+
   addScore(20);
 }
 
 function quiz(){
   let a = prompt("금속 원소는?");
-  if(a.includes("Cu")||a.includes("구리")){
-    addScore(30); mission("정답!");
-  } else mission("오답!");
+  if((currentMOF==="HKUST" && (a.includes("Cu")||a.includes("구리"))) ||
+     (currentMOF==="ZIF" && (a.includes("Zn")||a.includes("아연")))){
+    addScore(30);
+    mission("정답!");
+  } else {
+    mission("오답!");
+  }
 }
 
 function aiExplain(){
-  let text = currentMOF==="HKUST" ? "구리 기반, 큰 기공 → 저장" : "아연 기반, 작은 기공 → 분리";
+  let text = currentMOF==="HKUST"
+    ? "구리 기반 MOF, 큰 기공 → 저장 용도"
+    : "아연 기반 MOF, 작은 기공 → 분리 용도";
+
   document.getElementById("aiText").innerText = text;
   addScore(5);
 }
@@ -190,7 +205,7 @@ function aiExplain(){
 function saveScore(){
   let data = JSON.parse(localStorage.getItem("ranking")||"[]");
   data.push({name:player, score:score});
-  data.sort((a,b)=>b.score-a.score);
+  data.sort((a,b)=>b.score-b.score);
   localStorage.setItem("ranking", JSON.stringify(data));
   showRanking();
 }
@@ -200,8 +215,8 @@ function showRanking(){
   let list = document.getElementById("ranking");
   list.innerHTML="";
   data.slice(0,5).forEach(d=>{
-    let li=document.createElement("li");
-    li.innerText=d.name + " - " + d.score;
+    let li = document.createElement("li");
+    li.innerText = d.name + " - " + d.score;
     list.appendChild(li);
   });
 }
