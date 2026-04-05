@@ -162,7 +162,7 @@ function mission(t){
 function loadHKUST(){
   currentMOF="HKUST";
   viewer.clear();
-  $3Dmol.download("https://files.rcsb.org/ligands/view/HKU.cif", viewer, {}, function(){
+  $3Dmol.download("https://raw.githubusercontent.com/sumin0602/mof-explorer/refs/heads/main/HKUST1.cif", viewer, {}, function(){
     viewer.setStyle({}, {stick:{}});
     viewer.zoomTo();
     viewer.render();
