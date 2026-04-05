@@ -172,7 +172,7 @@ function loadHKUST(){
 function loadZIF(){
   currentMOF="ZIF";
   viewer.clear();
-  $3Dmol.download("https://files.rcsb.org/ligands/view/ZIF.cif", viewer, {}, function(){
+  $3Dmol.download("https://raw.githubusercontent.com/sumin0602/mof-explorer/refs/heads/main/HKUST1.cif", viewer, {}, function(){
     viewer.setStyle({}, {stick:{color:"#facc15"}});
     viewer.zoomTo();
     viewer.render();
