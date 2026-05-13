@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/common.css">
+<!-- Three.js for real HKUST-1 3D crystal viewer (CIF) -->
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
 <style>
   .head-block {
     text-align: center;
@@ -122,6 +124,135 @@
     color: var(--txd);
     text-align: center;
     padding: 4rem 1rem;
+  }
+
+  /* ----- 3D viewer ----- */
+  .viewer-3d {
+    position: relative;
+    background: rgba(4,9,26,0.92);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+  }
+  .viewer-mount {
+    position: absolute;
+    inset: 0;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+  .viewer-mount:active { cursor: grabbing; }
+  .viewer-mount canvas { display: block; }
+
+  .viewer-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.75rem;
+    pointer-events: none;
+    z-index: 4;
+    gap: 0.5rem;
+  }
+  .viewer-hint {
+    background: rgba(4,9,26,0.7);
+    border: 1px solid var(--border);
+    color: var(--txm);
+    font-size: 0.7rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    backdrop-filter: blur(8px);
+  }
+  .viewer-reset {
+    pointer-events: auto;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(4,9,26,0.65);
+    color: var(--tx);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+  }
+  .viewer-reset:hover {
+    border-color: var(--bl2);
+    background: rgba(37,99,235,0.20);
+  }
+
+  .viewer-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: rgba(4,9,26,0.92);
+    color: var(--txm);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+    z-index: 5;
+  }
+  .viewer-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(96,165,250,0.15);
+    border-top-color: var(--bl2);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  .viewer-legend {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    z-index: 3;
+    backdrop-filter: blur(8px);
+    background: rgba(4,9,26,0.55);
+  }
+
+  /* ----- ligand SVG diagrams ----- */
+  .ligand-diagrams {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+  .lig-card {
+    background: rgba(4,9,26,0.45);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem;
+  }
+  .lig-card h5 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    color: var(--cu);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .lig-card h5 .muted { font-size: 0.66rem; font-weight: 400; color: var(--txm); }
+  .lig-svg {
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    margin: 0 auto 0.4rem;
+    display: block;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+  }
+  .lig-card .desc {
+    font-size: 0.76rem;
+    color: var(--txm);
+    margin: 0;
+    line-height: 1.55;
+    text-align: center;
   }
 
   .summary-grid {
@@ -415,21 +546,35 @@
 
       <div class="struct-grid">
         <div>
-          <div class="canvas-wrap">
-            <canvas id="hkustCanvas"></canvas>
-            <div class="legend">
-              <div class="item"><span class="dot" style="background:#fb923c"></span> Cu 노드 (금속)</div>
-              <div class="item"><span class="dot" style="background:#3b82f6"></span> BTC 리간드 (유기)</div>
-              <div class="item"><span class="dot" style="background:#06b6d4"></span> 기공 (빈 공간)</div>
+          <div class="viewer-3d">
+            <div id="hkust3d" class="viewer-mount"></div>
+            <div class="viewer-overlay">
+              <div class="viewer-hint">🖱 드래그: 회전 · 휠: 확대 · 더블클릭: 자동회전</div>
+              <button id="viewerReset" class="viewer-reset" type="button">↻ 리셋</button>
+            </div>
+            <div id="viewer3dLoading" class="viewer-loading">
+              <div class="viewer-spinner"></div>
+              <div>실제 HKUST-1 결정 구조 (CIF) 로딩 중...</div>
+            </div>
+            <div class="legend viewer-legend">
+              <div class="item"><span class="dot" style="background:#fb923c"></span> Cu</div>
+              <div class="item"><span class="dot" style="background:#ef4444"></span> O</div>
+              <div class="item"><span class="dot" style="background:#64748b"></span> C</div>
+              <div class="item"><span class="dot" style="background:#e2e8f0; border:1px solid #94a3b8"></span> H</div>
+              <div class="item"><span class="dot" style="background:#06b6d4"></span> 기공</div>
             </div>
           </div>
+          <p class="muted" style="font-size:0.78rem; margin-top:0.5rem; text-align:center;">
+            🔬 VESTA로 시각화된 HKUST-1 단위 셀 — 18.6 Å (60° rhombohedral)
+          </p>
         </div>
 
         <div class="info-panel" id="infoPanel">
           <div class="placeholder">
             🔍<br><br>
-            구조 위에서 <strong>구리 노드</strong>, <strong>유기 리간드</strong>,<br>
-            또는 <strong>기공</strong> 영역을 클릭하면<br>여기에 자세한 설명이 표시됩니다.
+            3D 모델 위에서 <strong>주황색 Cu 노드</strong>,<br>
+            <strong>회색/빨간 리간드 원자</strong>(C, O, H),<br>
+            또는 <strong>사이언 기공</strong>을 클릭하면<br>여기에 자세한 설명이 표시됩니다.
           </div>
         </div>
       </div>
