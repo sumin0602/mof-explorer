@@ -1,0 +1,19 @@
+{
+  "name": "mof-explorer",
+  "version": "1.0.0",
+  "description": "고등학생을 위한 MOF(금속-유기 골격체) 학습 웹사이트 — 정적 페이지 + Claude AI 프록시 + SQLite 보고서 DB",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  }
+}

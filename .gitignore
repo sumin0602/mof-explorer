@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.local
+
+# SQLite DB + journal
+data.db
+data.db-journal
+data.db-wal
+data.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Claude local state
+.claude/

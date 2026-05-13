@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOF Explorer — 나노 세계로의 탐험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/common.css">
+<style>
+  /* ---------- Hero ---------- */
+  .hero {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1.5rem 3rem;
+    position: relative;
+  }
+  .hero-inner {
+    max-width: 1100px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  @media (max-width: 820px) {
+    .hero-inner { grid-template-columns: 1fr; gap: 2rem; }
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    color: var(--bl2);
+    padding: 0.4rem 0.85rem;
+    background: rgba(37,99,235,0.10);
+    border: 1px solid rgba(59,130,246,0.30);
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+  }
+  .hero-badge .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--bl2);
+    box-shadow: 0 0 8px var(--bl2);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 4rem);
+    line-height: 1.05;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #dbeafe 0%, #60a5fa 50%, #1e3a8a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .sub {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+    color: var(--bpal);
+    margin-bottom: 1.3rem;
+    letter-spacing: 0.04em;
+  }
+  .hero .desc {
+    color: var(--txm);
+    font-size: 1.02rem;
+    margin-bottom: 2rem;
+    max-width: 540px;
+  }
+
+  .hero-cta { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+  /* ---------- SVG molecule animation ---------- */
+  .mof-anim {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+  .mof-anim svg {
+    width: 100%; height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 0 30px rgba(59,130,246,0.25));
+  }
+  .mof-anim .ring-out  { transform-origin: 100px 100px; animation: spin 30s linear infinite; }
+  .mof-anim .ring-in   { transform-origin: 100px 100px; animation: spinRev 22s linear infinite; }
+  .mof-anim .pore-ring { animation: pulse 3.5s ease-in-out infinite; transform-origin: 100px 100px; }
+
+  /* ---------- Scroll hint ---------- */
+  .scroll-hint {
+    position: absolute;
+    bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: var(--txm);
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    font-family: 'Orbitron', sans-serif;
+  }
+  .scroll-hint::before {
+    content: '';
+    display: block;
+    width: 1px; height: 40px;
+    margin: 0 auto 0.5rem;
+    background: linear-gradient(to bottom, transparent, var(--bl2));
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* ---------- Stats ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 0 auto 4rem;
+    max-width: 1100px;
+    padding: 0 1.5rem;
+  }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+  }
+  .stat .num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--bl2);
+    line-height: 1.1;
+    margin-bottom: 0.3rem;
+  }
+  .stat .lbl {
+    font-size: 0.78rem;
+    color: var(--txm);
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------- Cards ---------- */
+  .cards-title {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .cards-title h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+    margin-bottom: 0.5rem;
+  }
+  .cards-title p { color: var(--txm); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    padding: 0 1.5rem;
+  }
+
+  .hub-card {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    min-height: 220px;
+  }
+  .hub-card .icon {
+    font-size: 2.4rem;
+    margin-bottom: 1rem;
+  }
+  .hub-card h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.15rem;
+    margin-bottom: 0.5rem;
+    color: var(--bpal);
+  }
+  .hub-card .small {
+    color: var(--txm);
+    font-size: 0.92rem;
+    margin-bottom: 1rem;
+    flex: 1;
+  }
+  .hub-card .tags {
+    display: flex; gap: 0.4rem; flex-wrap: wrap;
+  }
+  .hub-card .arrow {
+    margin-top: 1rem;
+    color: var(--bl2);
+    font-size: 0.85rem;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-badge">
+          <span class="dot"></span>
+          HIGH SCHOOL SCIENCE · MOF LEARNING PLATFORM
+        </div>
+        <h1>Metal-Organic<br>Frameworks</h1>
+        <div class="sub">나노 세계의 문을 열다</div>
+        <p class="desc">
+          금속 이온과 유기 분자가 결합해 만드는 무한한 3차원 다공성 결정.
+          MOF Explorer에서 분자 구조의 비밀, 기공의 마법, 그리고 미래 응용 기술을 직접 체험해 보세요.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="structure.html">🔬 구조 탐험 시작</a>
+          <a class="btn btn-accent"  href="game.html">🎮 기공 찾기 게임</a>
+        </div>
+      </div>
+
+      <div class="mof-anim" aria-hidden="true">
+        <svg viewBox="0 0 200 200">
+          <!-- outer dashed pore ring -->
+          <circle class="pore-ring" cx="100" cy="100" r="60"
+                  fill="none" stroke="rgba(6,182,212,0.6)" stroke-width="1.2"
+                  stroke-dasharray="4 3"/>
+          <!-- inner pore ring -->
+          <circle class="pore-ring" cx="100" cy="100" r="32"
+                  fill="none" stroke="rgba(6,182,212,0.4)" stroke-width="1"
+                  stroke-dasharray="3 3"/>
+
+          <!-- ring-in: 6 linkers -->
+          <g class="ring-in">
+            <g id="linkers"></g>
+          </g>
+
+          <!-- ring-out: 6 cu nodes + bonds -->
+          <g class="ring-out">
+            <g id="bonds"></g>
+            <g id="cus"></g>
+          </g>
+
+          <!-- center cu -->
+          <circle cx="100" cy="100" r="13" fill="#fb923c"
+                  stroke="rgba(251,146,60,0.5)" stroke-width="3"/>
+          <text x="100" y="104" text-anchor="middle"
+                font-family="Orbitron" font-size="10" font-weight="700"
+                fill="#fff">Cu</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="scroll-hint">SCROLL · 탐험 시작하기</div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><div class="num">90,000+</div><div class="lbl">알려진 MOF 구조</div></div>
+    <div class="stat"><div class="num">7,000 m²</div><div class="lbl">1g당 최대 비표면적</div></div>
+    <div class="stat"><div class="num">~9 Å</div><div class="lbl">HKUST-1 기공 크기</div></div>
+    <div class="stat"><div class="num">3D</div><div class="lbl">다공성 결정 구조</div></div>
+  </div>
+
+  <div class="cards-title">
+    <h2 class="gradient-text">학습 모듈</h2>
+    <p>3가지 방식으로 MOF의 세계를 탐험하세요</p>
+  </div>
+
+  <div class="cards-grid">
+
+    <a class="glow-card hub-card" href="structure.html">
+      <div class="icon">🔬</div>
+      <h3>분자 구조 특징</h3>
+      <p class="small">MOF의 정의와 4대 핵심 특징을 인터랙티브 다이어그램으로 학습합니다.</p>
+      <div class="tags">
+        <span class="badge">SVG 시각화</span>
+        <span class="badge">기공 슬라이더</span>
+      </div>
+      <div class="arrow">EXPLORE →</div>
+    </a>
+
+    <a class="glow-card hub-card" href="game.html">
+      <div class="icon">🎮</div>
+      <h3>HKUST-1 기공 게임</h3>
+      <p class="small">격자 구조 속에 숨겨진 기공을 찾아 맞히는 4가지 모드의 챌린지 게임.</p>
+      <div class="tags">
+        <span class="badge badge-gold">랭킹</span>
+        <span class="badge badge-gold">타임 챌린지</span>
+      </div>
+      <div class="arrow">PLAY →</div>
+    </a>
+
+    <a class="glow-card hub-card" href="report.html">
+      <div class="icon">📋</div>
+      <h3>조사 보고서</h3>
+      <p class="small">관심 MOF를 골라 보고서를 작성하고, AI 첨삭으로 글을 다듬어 PDF로 저장하세요.</p>
+      <div class="tags">
+        <span class="badge badge-gold">AI 첨삭</span>
+        <span class="badge">PDF 저장</span>
+      </div>
+      <div class="arrow">WRITE →</div>
+    </a>
+
+  </div>
+
+</main>
+
+<script>
+  // build the spinning ring of 6 cu nodes + 6 linkers
+  (function () {
+    const cus    = document.getElementById('cus');
+    const bonds  = document.getElementById('bonds');
+    const linkers= document.getElementById('linkers');
+    if (!cus || !bonds || !linkers) return;
+
+    const cx = 100, cy = 100;
+    const R_OUT = 78;   // outer cu radius
+    const R_IN  = 40;   // linker radius
+
+    for (let i = 0; i < 6; i++) {
+      const ang = (Math.PI * 2 * i) / 6 - Math.PI / 2;
+
+      const ox = cx + R_OUT * Math.cos(ang);
+      const oy = cy + R_OUT * Math.sin(ang);
+      const ix = cx + R_IN  * Math.cos(ang);
+      const iy = cy + R_IN  * Math.sin(ang);
+
+      // bond from outer cu to center
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+      line.setAttribute('x2', ox); line.setAttribute('y2', oy);
+      line.setAttribute('stroke', 'rgba(96,165,250,0.35)');
+      line.setAttribute('stroke-width', '1.6');
+      bonds.appendChild(line);
+
+      // outer Cu
+      const cu = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      cu.setAttribute('cx', ox); cu.setAttribute('cy', oy);
+      cu.setAttribute('r', '7');
+      cu.setAttribute('fill', '#fb923c');
+      cu.setAttribute('stroke', 'rgba(251,146,60,0.4)');
+      cu.setAttribute('stroke-width', '2');
+      cus.appendChild(cu);
+
+      // linker (blue)
+      const lk = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      lk.setAttribute('cx', ix); lk.setAttribute('cy', iy);
+      lk.setAttribute('r', '6');
+      lk.setAttribute('fill', '#3b82f6');
+      lk.setAttribute('stroke', 'rgba(96,165,250,0.6)');
+      lk.setAttribute('stroke-width', '1.6');
+      linkers.appendChild(lk);
+    }
+  })();
+</script>
+
+<script src="js/nav.js"></script>
+</body>
+</html>
