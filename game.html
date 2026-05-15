@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="HKUST-1 결정 구조 안의 기공을 찾는 인터랙티브 게임. 2D 클래식 4종 + 3D 기공 헌트 + MOF 탐정 모드.">
+<meta name="theme-color" content="#04091a">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <title>HKUST-1 기공 찾기 — MOF Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +56,11 @@
   }
   .mode-card:hover {
     transform: translateY(-3px);
+    border-color: var(--bl2);
+  }
+  .mode-card:focus-visible {
+    outline: 2px solid var(--bl2);
+    outline-offset: 3px;
     border-color: var(--bl2);
   }
   .mode-card.gold { border-color: rgba(245,158,11,0.5); }
@@ -526,9 +534,9 @@
         <div class="right">
           <div class="hud-stat"><div class="num" id="hudPores">5</div><div class="lbl">남은 기공</div></div>
           <div class="hud-stat"><div class="num" id="hudHints">2</div><div class="lbl">힌트</div></div>
-          <button class="btn btn-ghost" id="useHint"  style="font-size:0.8rem; padding:0.45rem 0.7rem;">💡 힌트</button>
-          <button class="btn btn-ghost" id="muteBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" title="사운드 켜기/끄기">🔊</button>
-          <button class="btn btn-ghost" id="quitGame" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+          <button class="btn btn-ghost" id="useHint"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="힌트 사용">💡 힌트</button>
+          <button class="btn btn-ghost" id="muteBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" title="사운드 켜기/끄기" aria-label="사운드 켜기/끄기">🔊</button>
+          <button class="btn btn-ghost" id="quitGame" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="게임 나가기">나가기</button>
         </div>
       </div>
 
@@ -560,8 +568,8 @@
         <canvas class="timer-ring" id="timerRing3d" width="80" height="80"></canvas>
         <div class="right">
           <div class="hud-stat"><div class="num" id="hud3dPores">0</div><div class="lbl">남은 기공</div></div>
-          <button class="btn btn-ghost" id="mute3dBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;">🔊</button>
-          <button class="btn btn-ghost" id="quit3dBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+          <button class="btn btn-ghost" id="mute3dBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 켜기/끄기">🔊</button>
+          <button class="btn btn-ghost" id="quit3dBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="게임 나가기">나가기</button>
         </div>
       </div>
 
@@ -601,8 +609,8 @@
         </div>
         <div></div>
         <div class="right">
-          <button class="btn btn-ghost" id="muteDetBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;">🔊</button>
-          <button class="btn btn-ghost" id="quitDetBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+          <button class="btn btn-ghost" id="muteDetBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 켜기/끄기">🔊</button>
+          <button class="btn btn-ghost" id="quitDetBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="게임 나가기">나가기</button>
         </div>
       </div>
 

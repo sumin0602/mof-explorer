@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="HKUST-1·MOF-5·UiO-66의 실제 결정 구조(CIF)를 3D로 살펴보며 금속 노드·유기 리간드·기공을 학습합니다.">
+<meta name="theme-color" content="#04091a">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <title>MOF 분자 구조 특징 — MOF Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -228,6 +231,12 @@
     border-radius: 12px;
     align-items: center;
     justify-content: center;
+  }
+  @media (max-width: 640px) {
+    .viewer-toolbar { gap: 0.75rem; padding: 0.65rem 0.75rem; }
+    .vtoolbar-group { flex: 1 1 auto; min-width: 0; }
+    .vbtn-row { flex-wrap: wrap; }
+    .vbtn { font-size: 0.72rem; padding: 0.35rem 0.6rem; }
   }
   .vtoolbar-group {
     display: flex;
@@ -655,7 +664,7 @@
             <div id="hkust3d" class="viewer-mount"></div>
             <div class="viewer-overlay">
               <div class="viewer-hint">🖱 드래그 · 휠 확대 · 더블클릭 자동회전</div>
-              <button id="viewerReset" class="viewer-reset" type="button">↻ 리셋</button>
+              <button id="viewerReset" class="viewer-reset" type="button" aria-label="카메라 위치 초기화">↻ 리셋</button>
             </div>
             <div id="viewer3dLoading" class="viewer-loading">
               <div class="viewer-spinner"></div>

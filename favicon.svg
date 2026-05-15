@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#04091a"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <!-- hexagonal MOF cell -->
+  <g transform="translate(32 32)" fill="none" stroke-width="2" stroke-linecap="round">
+    <polygon points="0,-18 15.6,-9 15.6,9 0,18 -15.6,9 -15.6,-9" stroke="#60a5fa"/>
+    <!-- Cu nodes -->
+    <circle cx="0"     cy="-18" r="3.4" fill="#fb923c"/>
+    <circle cx="15.6"  cy="-9"  r="3.4" fill="#fb923c"/>
+    <circle cx="15.6"  cy="9"   r="3.4" fill="#fb923c"/>
+    <circle cx="0"     cy="18"  r="3.4" fill="#fb923c"/>
+    <circle cx="-15.6" cy="9"   r="3.4" fill="#fb923c"/>
+    <circle cx="-15.6" cy="-9"  r="3.4" fill="#fb923c"/>
+    <!-- pore -->
+    <circle r="6" stroke="#06b6d4" stroke-dasharray="2 2" stroke-width="1.5"/>
+  </g>
+</svg>

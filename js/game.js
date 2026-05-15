@@ -182,12 +182,22 @@
   /* ---------- Mode selection ---------- */
   let selectedMode = 'normal';
   document.querySelectorAll('#modeCards .mode-card').forEach(c => {
-    c.addEventListener('click', () => {
+    // a11y: make the card focusable + announceable to screen readers
+    c.setAttribute('role', 'button');
+    c.setAttribute('tabindex', '0');
+    const title = (c.querySelector('h4')?.textContent || '').trim();
+    if (title) c.setAttribute('aria-label', `${title} 모드 선택`);
+
+    function pick() {
       selectedMode = c.dataset.mode;
       document.getElementById('nameModeInfo').textContent = `모드: ${MODES[selectedMode].name}`;
       document.getElementById('playerName').value = '';
       show('screenName');
       setTimeout(() => document.getElementById('playerName').focus(), 50);
+    }
+    c.addEventListener('click', pick);
+    c.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); }
     });
   });
 

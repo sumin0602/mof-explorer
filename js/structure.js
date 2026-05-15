@@ -152,6 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (resetBtn) resetBtn.addEventListener('click', () => viewer.resetCamera());
 
+    // ⭐ Initial load — without this, the loading spinner stays forever.
+    loadMOF(currentMOF);
+
     /* ---- info panel handlers ---- */
     function metalName(el) {
       return ({ Cu: '구리', Zn: '아연', Zr: '지르코늄', Cr: '크롬' })[el] || el;
