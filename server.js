@@ -17,8 +17,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 const PORT  = Number(process.env.PORT) || 8080;
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5';
-const KEY   = process.env.ANTHROPIC_API_KEY || '';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const KEY   = process.env.GEMINI_API_KEY || '';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -80,23 +80,44 @@ const deleteReport = db.prepare(`DELETE FROM reports WHERE id = ?`);
 /* ---------- Health ---------- */
 app.get('/api/health', (req, res) => {
   res.json({
-    ok: true,
-    ai: Boolean(KEY),
-    model: MODEL,
-    db: true,            // boolean — frontend keys on this
-    dbKind: 'sqlite',    // informational
-    runtime: 'express',
-    time: Date.now(),
+    ok:       true,
+    ai:       Boolean(KEY),
+    provider: 'google-gemini',
+    model:    MODEL,
+    db:       true,         // boolean — frontend keys on this
+    dbKind:   'sqlite',
+    runtime:  'express',
+    time:     Date.now(),
   });
 });
 
-/* ---------- AI proxy ---------- */
+/* ---------- AI proxy (Google Gemini) ---------- */
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    scores: {
+      type: 'object',
+      properties: {
+        completeness: { type: 'integer' },
+        accuracy:     { type: 'integer' },
+        depth:        { type: 'integer' },
+      },
+      required: ['completeness', 'accuracy', 'depth'],
+    },
+    good:           { type: 'array', items: { type: 'string' } },
+    improve:        { type: 'array', items: { type: 'string' } },
+    suggest:        { type: 'array', items: { type: 'string' } },
+    improvedStruct: { type: 'string' },
+  },
+  required: ['scores', 'good', 'improve', 'suggest', 'improvedStruct'],
+};
+
 app.post('/api/ai-feedback', async (req, res) => {
   try {
     if (!KEY) {
       return res.status(503).json({
         error: 'AI_NOT_CONFIGURED',
-        message: 'ANTHROPIC_API_KEY가 서버 .env 파일에 설정되지 않았습니다.',
+        message: 'GEMINI_API_KEY가 서버 .env 파일에 설정되지 않았습니다.',
       });
     }
 
@@ -104,60 +125,71 @@ app.post('/api/ai-feedback', async (req, res) => {
     if (!reportText || typeof reportText !== 'string') {
       return res.status(400).json({ error: 'BAD_REQUEST', message: 'reportText가 필요합니다.' });
     }
+    if (reportText.length > 8000) {
+      return res.status(413).json({ error: 'TOO_LARGE' });
+    }
 
     const prompt = `당신은 고등학교 화학 선생님입니다. 학생이 작성한 MOF(금속-유기 골격체) 조사 보고서를 첨삭해주세요.
 
 학생 보고서:
 ${reportText}
 
-다음 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
-{
-  "scores": {
-    "completeness": 0~100 사이 정수 (내용 완성도),
-    "accuracy": 0~100 사이 정수 (과학적 정확도),
-    "depth": 0~100 사이 정수 (서술 깊이)
-  },
-  "good": ["잘 작성된 부분 1", "잘 작성된 부분 2"],
-  "improve": ["보완 필요한 부분 1", "보완 필요한 부분 2"],
-  "suggest": ["추가 학습 제안 1", "추가 학습 제안 2"],
-  "improvedStruct": "구조 특징 설명을 더 풍부하게 개선한 버전 (2~3문장)"
-}
+평가 기준:
+- completeness (내용 완성도, 0~100): 필수 항목이 모두 채워졌고 분량이 충분한가
+- accuracy (과학적 정확도, 0~100): 화학식·금속·리간드·기공 크기 등 사실관계가 맞는가
+- depth (서술 깊이, 0~100): 자신의 언어로 구조·응용을 잘 설명하는가
 
-내용이 부족하거나 비어있으면 솔직하게 점수를 낮게 주고 구체적인 개선 방향을 제시해주세요. 고등학생 수준에 맞는 피드백을 한국어로 작성해주세요.`;
+각 배열(good/improve/suggest)에는 2~3개의 한국어 문장을 담으세요.
+improvedStruct는 "구조 특징 설명" 항목을 더 풍부하게 개선한 2~3문장입니다.
 
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':     'application/json',
-        'x-api-key':        KEY,
-        'anthropic-version':'2023-06-01',
+내용이 부족하거나 비어있으면 솔직하게 점수를 낮게 주고 구체적인 개선 방향을 제시하세요. 고등학생 수준에 맞는 친절한 톤으로 한국어 피드백을 작성해주세요.`;
+
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'x-goog-api-key': KEY,
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature:      0.6,
+            maxOutputTokens:  1800,
+            responseMimeType: 'application/json',
+            responseSchema:   RESPONSE_SCHEMA,
+          },
+        }),
       },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1200,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    );
 
     const data = await r.json();
     if (!r.ok) {
-      console.error('Claude API error:', data);
+      console.error('Gemini API error:', data);
       return res.status(r.status).json({ error: 'UPSTREAM', detail: data });
     }
 
-    const raw = (data.content || [])
-      .map(c => c.text || '')
-      .join('')
-      .replace(/```json|```/g, '')
-      .trim();
+    const cand = (data.candidates || [])[0];
+    if (!cand || cand.finishReason === 'SAFETY' || cand.finishReason === 'RECITATION') {
+      return res.status(502).json({
+        error: 'BLOCKED',
+        message: '응답이 안전 필터에 의해 차단되었습니다.',
+      });
+    }
+    const text = (cand.content?.parts || []).map(p => p.text || '').join('').trim();
+    if (!text) return res.status(502).json({ error: 'EMPTY_RESPONSE' });
 
     let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch (e) {
-      console.warn('Failed to parse model JSON, returning raw:', raw.slice(0, 200));
-      return res.status(502).json({ error: 'PARSE_FAILED', raw });
+    try { parsed = JSON.parse(text); }
+    catch (_) {
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      try { parsed = JSON.parse(cleaned); }
+      catch (e2) {
+        console.warn('Failed to parse model JSON:', text.slice(0, 200));
+        return res.status(502).json({ error: 'PARSE_FAILED', raw: text });
+      }
     }
-
     res.json(parsed);
   } catch (e) {
     console.error(e);
@@ -237,7 +269,7 @@ app.listen(PORT, () => {
   console.log('  ⬡  MOF Explorer');
   console.log('  ─────────────────────────────────────');
   console.log(`  Local:    http://localhost:${PORT}`);
-  console.log(`  AI:       ${KEY ? `enabled (model: ${MODEL})` : 'disabled — set ANTHROPIC_API_KEY in .env'}`);
+  console.log(`  AI:       ${KEY ? `enabled (Gemini · ${MODEL})` : 'disabled — set GEMINI_API_KEY in .env'}`);
   console.log(`  DB:       ./data.db (SQLite)`);
   console.log('');
 });

@@ -1,5 +1,5 @@
 /* Vercel Serverless Function — GET /api/health
-   Public endpoint, returns whether the Claude proxy is configured. */
+   Public endpoint, returns whether the Gemini proxy is configured. */
 
 export default function handler(req, res) {
   // Permissive CORS — the static frontend (GitHub Pages, file://, local) hits this.
@@ -9,11 +9,12 @@ export default function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   res.status(200).json({
-    ok: true,
-    ai: Boolean(process.env.ANTHROPIC_API_KEY),
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-5',
-    db: false,                // Vercel serverless has no persistent SQLite
-    runtime: 'vercel',
-    time: Date.now(),
+    ok:       true,
+    ai:       Boolean(process.env.GEMINI_API_KEY),
+    provider: 'google-gemini',
+    model:    process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    db:       false,                // Vercel serverless has no persistent SQLite
+    runtime:  'vercel',
+    time:     Date.now(),
   });
 }

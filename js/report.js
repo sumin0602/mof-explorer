@@ -468,12 +468,13 @@ MOF 이름: ${selMOF ? MOF_DATA[selMOF].name : '미선택'}
     r.style.display = 'block';
 
     const s = fb.scores || {};
+    const modelLabel = SERVER.model ? `${SERVER.model} 모델` : 'AI';
     const banner = usedFallback ? `
       <div style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.40); border-radius:10px; padding:0.75rem 1rem; margin-bottom:1.25rem; font-size:0.85rem; color:var(--goldl);">
-        ⓘ AI 서버에 연결할 수 없어 <strong>오프라인 기본 첨삭</strong>이 실행되었습니다. 실제 AI 첨삭은 백엔드(<code>npm start</code>)와 <code>ANTHROPIC_API_KEY</code> 설정 후 사용할 수 있어요.
+        ⓘ AI 서버에 연결할 수 없어 <strong>오프라인 기본 첨삭</strong>이 실행되었습니다. 실제 AI 첨삭은 백엔드 + <code>GEMINI_API_KEY</code> 설정 후 사용할 수 있어요.
       </div>` : `
       <div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.40); border-radius:10px; padding:0.75rem 1rem; margin-bottom:1.25rem; font-size:0.85rem; color:var(--ok);">
-        ✓ Claude 모델 첨삭 결과입니다.
+        ✓ ${modelLabel} 첨삭 결과입니다.
       </div>`;
     r.innerHTML = banner + `
       <div class="ai-scores">

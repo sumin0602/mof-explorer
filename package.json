@@ -1,7 +1,7 @@
 {
   "name": "mof-explorer",
   "version": "1.0.0",
-  "description": "고등학생을 위한 MOF(금속-유기 골격체) 학습 웹사이트 — 정적 페이지 + Claude AI 프록시 + SQLite 보고서 DB",
+  "description": "고등학생을 위한 MOF(금속-유기 골격체) 학습 웹사이트 — 정적 페이지 + Google Gemini AI 프록시 + SQLite 보고서 DB",
   "type": "module",
   "main": "server.js",
   "scripts": {
