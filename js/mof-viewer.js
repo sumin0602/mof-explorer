@@ -184,7 +184,12 @@
         }
       }
     }
-    // Non-max suppression: keep largest, suppress overlapping
+    // Non-max suppression: keep largest, suppress overlapping.
+    // NOTE: keep field names ({p, r}) consistent inside the loop —
+    // the previous code pushed {position, radius} but the next
+    // iteration read .p/.r from those, which is undefined, leading
+    // to "Cannot read properties of undefined (reading 'x')" inside
+    // THREE.Vector3.distanceTo.
     cands.sort((a, b) => b.r - a.r);
     const kept = [];
     for (const c of cands) {
@@ -192,10 +197,11 @@
       for (const k of kept) {
         if (c.p.distanceTo(k.p) < Math.max(k.r, c.r) * 0.85) { occluded = true; break; }
       }
-      if (!occluded) kept.push({ position: c.p, radius: c.r });
+      if (!occluded) kept.push({ p: c.p, r: c.r });
       if (kept.length >= maxOut) break;
     }
-    return kept;
+    // Map to the public {position, radius} shape that callers expect.
+    return kept.map(k => ({ position: k.p, radius: k.r }));
   }
 
   /* ============================================================
