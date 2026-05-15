@@ -115,17 +115,19 @@
     window.addEventListener(ev, () => SFX.unlock(), { once: true }));
 
   const MODES = {
-    normal: { name: '일반 모드',    pores: 5,  time: 0,  penalty: 0, pointPerPore: 10, timeBonus: false, cols: 7, rows: 5 },
-    time:   { name: '타임 챌린지',  pores: 8,  time: 30, penalty: 0, pointPerPore: 10, timeBonus: true,  cols: 7, rows: 5 },
-    hard:   { name: '하드 모드',    pores: 10, time: 0,  penalty: 5, pointPerPore: 15, timeBonus: false, cols: 7, rows: 5 },
-    blitz:  { name: '블리츠',       pores: 15, time: 60, penalty: 3, pointPerPore: 12, timeBonus: true,  cols: 9, rows: 7 },
+    normal: { name: '일반 모드',    pores: 5,  time: 0,  penalty: 0, pointPerPore: 10, timeBonus: false, cols: 7, rows: 5, kind: '2d' },
+    time:   { name: '타임 챌린지',  pores: 8,  time: 30, penalty: 0, pointPerPore: 10, timeBonus: true,  cols: 7, rows: 5, kind: '2d' },
+    hard:   { name: '하드 모드',    pores: 10, time: 0,  penalty: 5, pointPerPore: 15, timeBonus: false, cols: 7, rows: 5, kind: '2d' },
+    blitz:  { name: '블리츠',       pores: 15, time: 60, penalty: 3, pointPerPore: 12, timeBonus: true,  cols: 9, rows: 7, kind: '2d' },
+    pore3d: { name: '3D 기공 헌트', time: 90, penalty: 3, supercell: 2, kind: 'pore3d' },
+    detective: { name: 'MOF 탐정', rounds: 5, kind: 'detective' },
   };
 
   const RANK_KEY = 'mof_ranking';
   const MAX_RANK = 20;
 
   /* ---------- Screen mgmt ---------- */
-  const screens = ['screenTitle', 'screenName', 'screenGame', 'screenResult'];
+  const screens = ['screenTitle', 'screenName', 'screenGame', 'screenPore3D', 'screenDetective', 'screenResult'];
   function show(id) {
     screens.forEach(s => {
       document.getElementById(s).classList.toggle('active', s === id);
@@ -611,6 +613,13 @@
 
   /* ---------- Game start / end ---------- */
   function startGame(mode) {
+    state.mode = mode;
+    state.cfg  = MODES[mode];
+
+    if (state.cfg.kind === 'pore3d')    { startPore3D();    return; }
+    if (state.cfg.kind === 'detective') { startDetective(); return; }
+
+    // ----- 2D classic flow -----
     buildBoard(mode);
     state.running = true;
     document.getElementById('modeBadge').textContent = '모드: ' + state.cfg.name;
@@ -728,6 +737,349 @@
         }
       }
     }
+  });
+
+  /* ============================================================
+     3D MODES (require Three.js + MOFViewer)
+     ============================================================ */
+
+  const pore3d = {
+    viewer: null, mof: null, pores: [], timer: null, totalT: 90,
+    score: 0, combo: 0, hits: 0, attempts: 0, timeLeft: 0, running: false,
+  };
+  const det = {
+    viewer: null, round: 0, score: 0, correctMof: null,
+    answered: false, hintUsed: false,
+  };
+
+  function require3D() {
+    if (!window.MOFViewer || !window.THREE) {
+      alert('3D 라이브러리(Three.js)를 불러올 수 없습니다.\n로컬 서버(npm start)에서 실행하거나 인터넷 연결을 확인해주세요.');
+      show('screenTitle');
+      return false;
+    }
+    return true;
+  }
+
+  /* ---------- 3D PORE HUNT ---------- */
+  function startPore3D() {
+    if (!require3D()) return;
+
+    const pool = ['hkust1', 'uio66'];   // skip MOF-5 (heavy for 2x2x2)
+    const mofKey = pool[Math.floor(Math.random() * pool.length)];
+    pore3d.mof = window.MOFViewer.REGISTRY[mofKey];
+
+    pore3d.score = 0;
+    pore3d.combo = 0;
+    pore3d.hits = 0;
+    pore3d.attempts = 0;
+    pore3d.totalT  = state.cfg.time || 90;
+    pore3d.timeLeft = pore3d.totalT;
+    pore3d.running = false;
+    pore3d.pores = [];
+
+    document.getElementById('hud3dScore').textContent = '0';
+    document.getElementById('hud3dPores').textContent = '...';
+    document.getElementById('mode3dBadge').textContent = `${pore3d.mof.name} · ${state.cfg.supercell || 2}×${state.cfg.supercell || 2}×${state.cfg.supercell || 2} 슈퍼셀`;
+    document.getElementById('combo3d').classList.remove('show');
+    document.getElementById('progress3dFill').style.width = '100%';
+
+    show('screenPore3D');
+
+    const loading = document.getElementById('pore3dLoading');
+    loading.style.display = 'flex';
+    loading.innerHTML = '<div class="viewer-spinner"></div><div>3D 구조 준비 중...</div>';
+
+    if (pore3d.viewer) { try { pore3d.viewer.dispose(); } catch (_) {} pore3d.viewer = null; }
+    document.getElementById('pore3dMount').innerHTML = '';
+
+    pore3d.viewer = window.MOFViewer.create({
+      mount: document.getElementById('pore3dMount'),
+      showPores: true,
+      showBonds: true,
+      autoRotate: false,
+      supercell: state.cfg.supercell || 2,
+      hiddenPores: true,        // pores exist but invisible until found
+      poreClickRadius: 1.2,
+      onPoreClick: () => {},     // pores can't be directly hit while hidden
+      onAtomClick: () => {},
+      onEmptyClick: ({ nearestPore }) => {
+        if (!pore3d.running) return;
+        pore3d.attempts++;
+        if (nearestPore < 0) {
+          // MISS
+          pore3d.combo = 0;
+          if (state.cfg.penalty) pore3d.score = Math.max(0, pore3d.score - state.cfg.penalty);
+          SFX.miss();
+          const bw = document.getElementById('board3dWrap');
+          bw.classList.remove('shake'); void bw.offsetWidth; bw.classList.add('shake');
+          updatePore3DHud();
+          return;
+        }
+        const p = pore3d.pores[nearestPore];
+        if (!p || p.found) return;
+        // HIT
+        p.found = true;
+        pore3d.viewer.revealPore(nearestPore);
+        pore3d.hits++;
+        pore3d.combo++;
+        const bucket = window.MOFViewer.poreColor(p.radius).bucket;
+        const basePts = 10 + bucket * 5;
+        const mult = comboMultiplier(pore3d.combo);
+        const pts = basePts * mult;
+        pore3d.score += pts;
+        SFX.hit(pore3d.combo);
+        if (pore3d.combo >= 2 && pore3d.combo <= 5) SFX.combo(pore3d.combo);
+        updatePore3DHud();
+        if (pore3d.pores.every(p => p.found)) {
+          // win — time bonus
+          if (pore3d.timeLeft > 0) pore3d.score += pore3d.timeLeft * 2;
+          endPore3D(true);
+        }
+      },
+      onReady: ({ pores }) => {
+        pore3d.pores = pores.map(p => ({ position: p.position, radius: p.radius, found: false }));
+        document.getElementById('hud3dPores').textContent = pore3d.pores.length;
+        renderPore3DLegend(pore3d.pores);
+        loading.style.display = 'none';
+        pore3d.running = true;
+        startPore3DTimer();
+      },
+    });
+
+    pore3d.viewer.loadFromURL(pore3d.mof.cif, pore3d.mof.id).catch(err => {
+      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ ${pore3d.mof.name} 로드 실패<br><span style="font-size:0.82rem; opacity:0.7;">${String(err.message || err)}</span></div>`;
+    });
+  }
+
+  function renderPore3DLegend(pores) {
+    const el = document.getElementById('pore3dLegend');
+    if (!el || !window.MOFViewer) return;
+    const buckets = new Map();
+    pores.forEach(p => {
+      const c = window.MOFViewer.poreColor(p.radius);
+      const cur = buckets.get(c.bucket) || { hex: c.hex, label: c.label, count: 0 };
+      cur.count++;
+      buckets.set(c.bucket, cur);
+    });
+    const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+    el.innerHTML = `
+      <span style="font-size:0.7rem; color:var(--txm); font-family:'Orbitron';">숨겨진 기공:</span>
+      ${sorted.map(([_, b]) => `
+        <span class="pl-item">
+          <span class="pl-dot" style="background:${b.hex}; color:${b.hex};"></span>
+          <span style="color:var(--txm);">${b.label} · <strong style="color:${b.hex};">${b.count}개</strong></span>
+        </span>
+      `).join('')}
+    `;
+  }
+
+  function updatePore3DHud() {
+    document.getElementById('hud3dScore').textContent = pore3d.score;
+    const left = pore3d.pores.filter(p => !p.found).length;
+    document.getElementById('hud3dPores').textContent = left;
+    const cb = document.getElementById('combo3d');
+    if (pore3d.combo >= 2) {
+      cb.classList.add('show');
+      document.getElementById('combo3dNum').textContent = comboMultiplier(pore3d.combo);
+    } else cb.classList.remove('show');
+  }
+
+  function startPore3DTimer() {
+    if (pore3d.timer) clearInterval(pore3d.timer);
+    drawTimerRing3d(1, pore3d.timeLeft);
+    pore3d.timer = setInterval(() => {
+      pore3d.timeLeft--;
+      const frac = pore3d.timeLeft / pore3d.totalT;
+      drawTimerRing3d(frac, pore3d.timeLeft);
+      const pf = document.getElementById('progress3dFill');
+      pf.style.width = (frac * 100) + '%';
+      if (pore3d.timeLeft <= 5) {
+        pf.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+        if (pore3d.timeLeft > 0) SFX.tick();
+      } else if (pore3d.timeLeft <= 15) {
+        pf.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+      }
+      if (pore3d.timeLeft <= 0) endPore3D(false);
+    }, 1000);
+  }
+
+  function drawTimerRing3d(frac, sec) {
+    const c = document.getElementById('timerRing3d');
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 - 8;
+    ctx.strokeStyle = 'rgba(59,130,246,0.15)';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    const col = sec <= 5 ? '#f87171' : sec <= 15 ? '#fbbf24' : '#3b82f6';
+    ctx.strokeStyle = col;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, frac));
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.font = 'bold 18px Orbitron, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(Math.max(0, sec)), cx, cy);
+  }
+
+  function endPore3D(victorious) {
+    pore3d.running = false;
+    if (pore3d.timer) { clearInterval(pore3d.timer); pore3d.timer = null; }
+    const elapsed = pore3d.totalT - pore3d.timeLeft;
+    const acc = pore3d.attempts === 0 ? 0 : Math.round((pore3d.hits / pore3d.attempts) * 100);
+    const grade = pore3d.score >= 220 ? 'S' : pore3d.score >= 140 ? 'A' : pore3d.score >= 70 ? 'B' : 'C';
+    if (victorious) setTimeout(() => SFX.win(grade), 200);
+    else            setTimeout(() => SFX.gameOver(), 100);
+    if (pore3d.viewer) { try { pore3d.viewer.dispose(); } catch (_) {} pore3d.viewer = null; }
+    state.score = pore3d.score;
+    showResult({ score: pore3d.score, acc, elapsed, grade });
+  }
+
+  document.getElementById('quit3dBtn').addEventListener('click', () => {
+    if (confirm('정말 게임을 종료하시겠습니까?')) endPore3D(false);
+  });
+  document.getElementById('mute3dBtn').addEventListener('click', () => {
+    SFX.setMuted(!SFX.muted);
+    document.getElementById('mute3dBtn').textContent = SFX.muted ? '🔇' : '🔊';
+    if (!SFX.muted) SFX.hit(1);
+  });
+
+  /* ---------- MOF DETECTIVE ---------- */
+  function startDetective() {
+    if (!require3D()) return;
+    det.round = 0;
+    det.score = 0;
+    document.getElementById('hudDetScore').textContent = '0';
+    document.getElementById('detRound').textContent = `0 / ${state.cfg.rounds}`;
+    show('screenDetective');
+    if (det.viewer) { try { det.viewer.dispose(); } catch (_) {} det.viewer = null; }
+    document.getElementById('detMount').innerHTML = '';
+    nextDetectiveRound();
+  }
+
+  function nextDetectiveRound() {
+    det.round++;
+    if (det.round > state.cfg.rounds) {
+      // game over
+      const grade = det.score >= 90 ? 'S' : det.score >= 60 ? 'A' : det.score >= 30 ? 'B' : 'C';
+      setTimeout(() => SFX.win(grade), 200);
+      if (det.viewer) { try { det.viewer.dispose(); } catch (_) {} det.viewer = null; }
+      state.score = det.score;
+      const acc = Math.round((det.score / (state.cfg.rounds * 20)) * 100);
+      showResult({ score: det.score, acc, elapsed: 0, grade });
+      return;
+    }
+    document.getElementById('detRound').textContent = `${det.round} / ${state.cfg.rounds}`;
+    document.getElementById('detFeedback').innerHTML = '';
+    document.getElementById('detHintTxt').textContent = '';
+    document.getElementById('detHintBtn').disabled = false;
+    document.getElementById('detHintBtn').style.opacity = '1';
+    det.answered = false;
+    det.hintUsed = false;
+
+    const pool = ['hkust1', 'mof5', 'uio66'];
+    const correctKey = pool[Math.floor(Math.random() * pool.length)];
+    const correct = window.MOFViewer.REGISTRY[correctKey];
+    det.correctMof = { id: correctKey, ...correct };
+
+    // choices: 3 from registry + 1 decoy (ZIF-8, no CIF in project)
+    const decoy = { id: 'zif8', name: 'ZIF-8', formula: 'Zn(mIm)₂' };
+    let choices = [
+      { id: 'hkust1', name: 'HKUST-1', formula: 'Cu₃(BTC)₂' },
+      { id: 'mof5',   name: 'MOF-5',   formula: 'Zn₄O(BDC)₃' },
+      { id: 'uio66',  name: 'UiO-66',  formula: 'Zr₆O₄(OH)₄(BDC)₆' },
+      decoy,
+    ];
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+
+    const cbox = document.getElementById('detChoices');
+    cbox.innerHTML = choices.map(c => `
+      <button class="det-choice" data-id="${c.id}">
+        ${c.name}
+        <span class="formula">${c.formula}</span>
+      </button>
+    `).join('');
+    cbox.querySelectorAll('.det-choice').forEach(btn => {
+      btn.addEventListener('click', () => answerDetective(btn, btn.dataset.id, correctKey));
+    });
+
+    // load 3D structure (no labels)
+    const loading = document.getElementById('detLoading');
+    loading.style.display = 'flex';
+    loading.innerHTML = '<div class="viewer-spinner"></div><div>다음 문제 준비 중...</div>';
+
+    if (det.viewer) { try { det.viewer.dispose(); } catch (_) {} det.viewer = null; }
+    document.getElementById('detMount').innerHTML = '';
+
+    det.viewer = window.MOFViewer.create({
+      mount: document.getElementById('detMount'),
+      showPores: false,
+      showBonds: true,
+      showAtoms: true,
+      autoRotate: true,
+      supercell: 1,
+      onAtomClick: () => {},
+      onPoreClick: () => {},
+      onEmptyClick: () => {},
+      onReady: () => { loading.style.display = 'none'; },
+    });
+    det.viewer.loadFromURL(correct.cif, correctKey).catch(err => {
+      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ 로드 실패<br><span style="font-size:0.82rem;">${String(err.message || err)}</span></div>`;
+    });
+  }
+
+  function answerDetective(btn, pickedId, correctId) {
+    if (det.answered) return;
+    det.answered = true;
+    const all = document.getElementById('detChoices').querySelectorAll('.det-choice');
+    all.forEach(b => b.classList.add('disabled'));
+
+    const isCorrect = pickedId === correctId;
+    if (isCorrect) {
+      btn.classList.add('correct');
+      let pts = 20;
+      if (det.hintUsed) pts -= 5;
+      det.score += pts;
+      SFX.hit(2);
+      document.getElementById('detFeedback').innerHTML =
+        `<span style="color:var(--ok); font-weight:600;">✓ 정답입니다! +${pts}점</span>` +
+        `<br><span class="muted" style="font-size:0.82rem;">${det.correctMof.blurb || ''}</span>`;
+    } else {
+      btn.classList.add('wrong');
+      SFX.miss();
+      all.forEach(b => { if (b.dataset.id === correctId) b.classList.add('correct'); });
+      document.getElementById('detFeedback').innerHTML =
+        `<span style="color:var(--err); font-weight:600;">✗ 정답은 <strong>${det.correctMof.name}</strong>입니다.</span>` +
+        `<br><span class="muted" style="font-size:0.82rem;">${det.correctMof.blurb || ''}</span>`;
+    }
+    document.getElementById('hudDetScore').textContent = det.score;
+    setTimeout(nextDetectiveRound, 2600);
+  }
+
+  document.getElementById('detHintBtn').addEventListener('click', () => {
+    if (det.answered || det.hintUsed) return;
+    det.hintUsed = true;
+    document.getElementById('detHintTxt').textContent = `🔍 단서: ${det.correctMof.hint || '특별한 단서가 없습니다'}`;
+    const b = document.getElementById('detHintBtn');
+    b.disabled = true;
+    b.style.opacity = '0.5';
+  });
+  document.getElementById('quitDetBtn').addEventListener('click', () => {
+    if (!confirm('정말 게임을 종료하시겠습니까?')) return;
+    if (det.viewer) { try { det.viewer.dispose(); } catch (_) {} det.viewer = null; }
+    state.score = det.score;
+    showResult({ score: det.score, acc: 0, elapsed: 0, grade: 'C' });
+  });
+  document.getElementById('muteDetBtn').addEventListener('click', () => {
+    SFX.setMuted(!SFX.muted);
+    document.getElementById('muteDetBtn').textContent = SFX.muted ? '🔇' : '🔊';
+    if (!SFX.muted) SFX.hit(1);
   });
 
   /* ---------- Initial render ---------- */

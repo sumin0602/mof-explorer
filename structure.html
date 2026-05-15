@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/common.css">
-<!-- Three.js for real HKUST-1 3D crystal viewer (CIF) -->
+<!-- Three.js for real MOF 3D crystal viewers (CIF) -->
 <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<script src="js/mof-viewer.js"></script>
 <style>
   .head-block {
     text-align: center;
@@ -212,6 +213,82 @@
     z-index: 3;
     backdrop-filter: blur(8px);
     background: rgba(4,9,26,0.55);
+  }
+
+  /* ----- viewer toolbar ----- */
+  .viewer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    align-items: center;
+    justify-content: center;
+  }
+  .vtoolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-start;
+  }
+  .vtoolbar-group > label {
+    font-size: 0.7rem;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.08em;
+    color: var(--txm);
+    margin: 0;
+  }
+  .vbtn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .vbtn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.8rem;
+    background: rgba(4,9,26,0.55);
+    border: 1px solid var(--border);
+    color: var(--txm);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .vbtn:hover { color: var(--tx); border-color: rgba(59,130,246,0.4); }
+  .vbtn.active {
+    background: rgba(37,99,235,0.22);
+    color: var(--bpal);
+    border-color: var(--bl2);
+  }
+  .vbtn.off { opacity: 0.45; }
+
+  /* pore color legend below viewer */
+  .pore-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(4,9,26,0.45);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    justify-content: center;
+  }
+  .pore-legend .pl-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.74rem;
+    color: var(--txm);
+  }
+  .pore-legend .pl-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .viewer-caption {
+    font-size: 0.78rem;
+    margin-top: 0.5rem;
+    text-align: center;
   }
 
   /* ----- ligand SVG diagrams ----- */
@@ -541,40 +618,61 @@
       <p class="lead">
         MOF(Metal-Organic Framework, 금속-유기 골격체)는 금속 이온 또는 클러스터(노드)와
         유기 분자 링커(리간드)가 결합해 형성되는 3차원 다공성 결정 구조입니다.
-        아래 격자에서 각 요소를 <strong>클릭</strong>해 자세히 살펴보세요.
+        <strong>MOF 종류와 단위 셀 개수</strong>를 바꿔보며 기공이 어떻게 다른지 비교해보세요.
       </p>
+
+      <!-- viewer toolbar -->
+      <div class="viewer-toolbar">
+        <div class="vtoolbar-group">
+          <label>MOF 선택</label>
+          <div class="vbtn-row" id="mofSelect">
+            <button class="vbtn active" data-mof="hkust1">HKUST-1</button>
+            <button class="vbtn"        data-mof="mof5">MOF-5</button>
+            <button class="vbtn"        data-mof="uio66">UiO-66</button>
+          </div>
+        </div>
+        <div class="vtoolbar-group">
+          <label>단위 셀 수</label>
+          <div class="vbtn-row" id="cellSelect">
+            <button class="vbtn active" data-n="1">1×1×1</button>
+            <button class="vbtn"        data-n="2">2×2×2</button>
+            <button class="vbtn"        data-n="3">3×3×3</button>
+          </div>
+        </div>
+        <div class="vtoolbar-group">
+          <label>표시</label>
+          <div class="vbtn-row">
+            <button class="vbtn active" id="togglePores">💎 기공</button>
+            <button class="vbtn active" id="toggleBonds">🔗 결합</button>
+          </div>
+        </div>
+      </div>
 
       <div class="struct-grid">
         <div>
           <div class="viewer-3d">
             <div id="hkust3d" class="viewer-mount"></div>
             <div class="viewer-overlay">
-              <div class="viewer-hint">🖱 드래그: 회전 · 휠: 확대 · 더블클릭: 자동회전</div>
+              <div class="viewer-hint">🖱 드래그 · 휠 확대 · 더블클릭 자동회전</div>
               <button id="viewerReset" class="viewer-reset" type="button">↻ 리셋</button>
             </div>
             <div id="viewer3dLoading" class="viewer-loading">
               <div class="viewer-spinner"></div>
-              <div>실제 HKUST-1 결정 구조 (CIF) 로딩 중...</div>
-            </div>
-            <div class="legend viewer-legend">
-              <div class="item"><span class="dot" style="background:#fb923c"></span> Cu</div>
-              <div class="item"><span class="dot" style="background:#ef4444"></span> O</div>
-              <div class="item"><span class="dot" style="background:#64748b"></span> C</div>
-              <div class="item"><span class="dot" style="background:#e2e8f0; border:1px solid #94a3b8"></span> H</div>
-              <div class="item"><span class="dot" style="background:#06b6d4"></span> 기공</div>
+              <div>결정 구조 (CIF) 로딩 중...</div>
             </div>
           </div>
-          <p class="muted" style="font-size:0.78rem; margin-top:0.5rem; text-align:center;">
-            🔬 VESTA로 시각화된 HKUST-1 단위 셀 — 18.6 Å (60° rhombohedral)
+          <div class="pore-legend" id="poreLegend"></div>
+          <p class="muted viewer-caption" id="viewerCaption">
+            🔬 VESTA로 시각화된 HKUST-1 단위 셀
           </p>
         </div>
 
         <div class="info-panel" id="infoPanel">
           <div class="placeholder">
             🔍<br><br>
-            3D 모델 위에서 <strong>주황색 Cu 노드</strong>,<br>
-            <strong>회색/빨간 리간드 원자</strong>(C, O, H),<br>
-            또는 <strong>사이언 기공</strong>을 클릭하면<br>여기에 자세한 설명이 표시됩니다.
+            3D 모델에서 <strong>금속 노드</strong>(주황·회색·시안),<br>
+            <strong>유기 리간드 원자</strong>(C, O, H),<br>
+            또는 <strong>색상별 기공</strong>을 클릭하면<br>여기에 자세한 설명이 표시됩니다.
           </div>
         </div>
       </div>

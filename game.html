@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/common.css">
+<!-- Three.js + shared MOF viewer (for 3D game modes) -->
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<script src="js/mof-viewer.js"></script>
 <style>
   .game-wrap {
     max-width: 1100px;
@@ -283,6 +286,104 @@
   .result-actions {
     display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;
   }
+
+  /* ----- 3D viewer overlays in game ----- */
+  .board-wrap .viewer-mount {
+    position: absolute; inset: 0;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+  .board-wrap .viewer-mount:active { cursor: grabbing; }
+  .board-wrap .viewer-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .board-wrap .viewer-hint {
+    background: rgba(4,9,26,0.7);
+    border: 1px solid var(--border);
+    color: var(--txm);
+    font-size: 0.74rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 100px;
+    backdrop-filter: blur(8px);
+  }
+  .board-wrap .viewer-loading {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1rem;
+    background: rgba(4,9,26,0.92);
+    color: var(--txm);
+    z-index: 5;
+  }
+  .board-wrap .viewer-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(96,165,250,0.15);
+    border-top-color: var(--bl2);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  /* legend in game */
+  .pore-legend {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(4,9,26,0.45);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .pore-legend .pl-item {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.76rem; color: var(--txm);
+  }
+  .pore-legend .pl-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  /* detective choice buttons */
+  .det-choice {
+    padding: 0.85rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.04em;
+  }
+  .det-choice:hover { border-color: var(--bl2); background: rgba(37,99,235,0.10); }
+  .det-choice.correct {
+    background: rgba(34,197,94,0.20);
+    border-color: var(--ok);
+    color: var(--ok);
+    animation: pulse 0.6s ease;
+  }
+  .det-choice.wrong {
+    background: rgba(239,68,68,0.18);
+    border-color: var(--err);
+    color: var(--err);
+  }
+  .det-choice.disabled { pointer-events: none; opacity: 0.6; }
+  .det-choice .formula {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--txm);
+    margin-top: 0.2rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0;
+  }
 </style>
 </head>
 <body>
@@ -297,25 +398,36 @@
         <p>구리 노드와 BTC 리간드로 짜여진 격자 안에 숨겨진 <strong>기공(pore)</strong>을 찾아보세요. 모드를 선택해 시작합니다.</p>
       </div>
 
+      <div style="margin-bottom:0.5rem; color:var(--bl2); font-family:'Orbitron'; font-size:0.78rem; letter-spacing:0.1em; text-align:center;">— 3D MODES —</div>
       <div class="modes" id="modeCards">
+        <div class="mode-card gold" data-mode="pore3d">
+          <div class="icon">🧊</div>
+          <h4>3D 기공 헌트</h4>
+          <div class="meta">2×2×2 슈퍼셀<br>실제 CIF 구조에서<br>색상별 기공을 클릭으로 찾기</div>
+        </div>
+        <div class="mode-card gold" data-mode="detective">
+          <div class="icon">🕵</div>
+          <h4>MOF 탐정</h4>
+          <div class="meta">3D 구조 5문제<br>금속 노드·리간드 단서로<br>MOF 종류 맞히기</div>
+        </div>
         <div class="mode-card" data-mode="normal">
           <div class="icon">🌟</div>
-          <h4>일반 모드</h4>
+          <h4>일반 모드 (2D)</h4>
           <div class="meta">기공 5개<br>시간 무제한 · 페널티 없음<br>기공당 +10점</div>
         </div>
         <div class="mode-card" data-mode="time">
           <div class="icon">⏱</div>
-          <h4>타임 챌린지</h4>
+          <h4>타임 챌린지 (2D)</h4>
           <div class="meta">기공 8개<br>제한 시간 30초<br>시간 보너스 +α</div>
         </div>
         <div class="mode-card" data-mode="hard">
           <div class="icon">🔥</div>
-          <h4>하드 모드</h4>
+          <h4>하드 모드 (2D)</h4>
           <div class="meta">기공 10개<br>오답 페널티 -5점<br>기공당 +15점</div>
         </div>
-        <div class="mode-card gold" data-mode="blitz">
+        <div class="mode-card" data-mode="blitz">
           <div class="icon">⚡</div>
-          <h4>블리츠</h4>
+          <h4>블리츠 (2D)</h4>
           <div class="meta">기공 15개 · 9×7 격자<br>60초 안에 모두 찾기<br>오답 페널티 -3점</div>
         </div>
       </div>
@@ -374,6 +486,86 @@
         <div class="muted" style="font-size:0.85rem;">⚡ 셀 중심을 클릭하세요. 콤보를 쌓으면 점수가 배가됩니다.</div>
         <div class="muted" style="font-size:0.85rem;" id="modeBadge">모드: -</div>
       </div>
+    </section>
+
+    <!-- ============ 3D PORE HUNT ============ -->
+    <section class="screen" id="screenPore3D">
+      <div class="hud">
+        <div class="left">
+          <div class="score-box">
+            <div class="num" id="hud3dScore">0</div>
+            <div class="lbl">SCORE</div>
+          </div>
+          <div class="combo" id="combo3d">COMBO ×<span id="combo3dNum">2</span></div>
+        </div>
+        <canvas class="timer-ring" id="timerRing3d" width="80" height="80"></canvas>
+        <div class="right">
+          <div class="hud-stat"><div class="num" id="hud3dPores">0</div><div class="lbl">남은 기공</div></div>
+          <button class="btn btn-ghost" id="mute3dBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;">🔊</button>
+          <button class="btn btn-ghost" id="quit3dBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+        </div>
+      </div>
+
+      <div class="progress-bar"><div class="progress-fill" id="progress3dFill"></div></div>
+
+      <div class="board-wrap" id="board3dWrap">
+        <div id="pore3dMount" class="viewer-mount"></div>
+        <div class="viewer-overlay">
+          <div class="viewer-hint">🖱 회전 · 휠 확대 · <strong>빈 공간을 클릭해 기공 찾기!</strong></div>
+        </div>
+        <div id="pore3dLoading" class="viewer-loading">
+          <div class="viewer-spinner"></div>
+          <div>3D 구조 준비 중...</div>
+        </div>
+      </div>
+
+      <div class="pore-legend" id="pore3dLegend" style="margin-top:0.75rem;"></div>
+
+      <div class="game-bottom">
+        <div class="muted" style="font-size:0.85rem;">💡 색상이 다른 기공은 크기가 다릅니다. 큰 기공일수록 보너스 점수!</div>
+        <div class="muted" style="font-size:0.85rem;" id="mode3dBadge">모드: -</div>
+      </div>
+    </section>
+
+    <!-- ============ MOF DETECTIVE ============ -->
+    <section class="screen" id="screenDetective">
+      <div class="hud">
+        <div class="left">
+          <div class="score-box">
+            <div class="num" id="hudDetScore">0</div>
+            <div class="lbl">SCORE</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.35); padding:0.5rem 0.85rem; border-radius:10px;">
+            <div class="num" style="font-family:'Orbitron'; font-size:1.2rem; color:var(--goldl);" id="detRound">1 / 5</div>
+            <div class="lbl" style="font-size:0.7rem; color:var(--txm);">라운드</div>
+          </div>
+        </div>
+        <div></div>
+        <div class="right">
+          <button class="btn btn-ghost" id="muteDetBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;">🔊</button>
+          <button class="btn btn-ghost" id="quitDetBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+        </div>
+      </div>
+
+      <div class="board-wrap" id="boardDetWrap" style="aspect-ratio: 16/10;">
+        <div id="detMount" class="viewer-mount"></div>
+        <div class="viewer-overlay">
+          <div class="viewer-hint">🔬 구조를 회전시키며 관찰하세요</div>
+        </div>
+        <div id="detLoading" class="viewer-loading">
+          <div class="viewer-spinner"></div>
+          <div>다음 문제 준비 중...</div>
+        </div>
+      </div>
+
+      <div class="det-choices" id="detChoices" style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.6rem; margin-top:0.85rem;"></div>
+
+      <div id="detHints" style="margin-top:0.6rem; text-align:center;">
+        <button class="btn btn-ghost" id="detHintBtn" style="font-size:0.78rem; padding:0.4rem 0.85rem;">💡 힌트 (-5점)</button>
+        <span class="muted" id="detHintTxt" style="margin-left:0.6rem; font-size:0.82rem;"></span>
+      </div>
+
+      <div id="detFeedback" style="margin-top:0.6rem; min-height:1.5rem; text-align:center; font-size:0.92rem; font-weight:500;"></div>
     </section>
 
     <!-- ============ RESULT ============ -->

@@ -30,35 +30,185 @@ document.addEventListener('DOMContentLoaded', () => {
   next.addEventListener('click', () => goStep(stepIdx + 1));
   goStep(1);
 
-  /* ---------- Section 1: HKUST-1 REAL 3D crystal viewer (CIF + Three.js) ---------- */
+  /* ---------- Section 1: Real 3D crystal viewer (CIF + Three.js + Supercell) ---------- */
   const info = document.getElementById('infoPanel');
-  setupHkust3D();
+  setupMofViewer();
 
-  function setupHkust3D() {
+  function setupMofViewer() {
     const mountEl  = document.getElementById('hkust3d');
     const loading  = document.getElementById('viewer3dLoading');
     const resetBtn = document.getElementById('viewerReset');
     if (!mountEl || !loading) return;
 
-    if (!window.THREE) {
+    if (!window.THREE || !window.MOFViewer) {
       loading.innerHTML = '<div style="color:var(--err); padding:1rem;">⚠ 3D 라이브러리(Three.js)를 불러올 수 없습니다.<br><span style="font-size:0.85rem; color:var(--txm);">인터넷 연결 또는 CDN 접근을 확인하세요.</span></div>';
       return;
     }
-    const THREE = window.THREE;
+    const MV = window.MOFViewer;
 
-    const ELEMS = {
-      Cu: { color: 0xfb923c, radius: 0.85, label: '구리 (Cu²⁺)' },
-      O:  { color: 0xef4444, radius: 0.42, label: '산소' },
-      C:  { color: 0x64748b, radius: 0.36, label: '탄소' },
-      H:  { color: 0xe2e8f0, radius: 0.22, label: '수소' },
-    };
-    const BONDS = {
-      'Cu-O': 2.6, 'O-Cu': 2.6,
-      'C-O':  1.7, 'O-C':  1.7,
-      'C-C':  1.8,
-      'C-H':  1.3, 'H-C':  1.3,
-      'O-H':  1.2, 'H-O':  1.2,
-    };
+    let currentMOF = 'hkust1';
+    let supercell  = 1;
+    let showPores  = true;
+    let showBonds  = true;
+
+    const viewer = MV.create({
+      mount: mountEl,
+      showPores: true,
+      showBonds: true,
+      autoRotate: true,
+      onAtomClick: ({ element }) => {
+        if (['Cu','Zn','Zr','Cr'].includes(element)) showMetal(element);
+        else                                         showLigand(element);
+      },
+      onPoreClick: ({ pore }) => showPore(pore),
+      onReady: ({ pores }) => {
+        loading.style.display = 'none';
+        renderPoreLegend(pores);
+      },
+    });
+
+    function loadMOF(key) {
+      const meta = MV.REGISTRY[key];
+      if (!meta) return;
+      currentMOF = key;
+      loading.style.display = 'flex';
+      loading.innerHTML = `<div class="viewer-spinner"></div><div>${meta.name} 결정 구조 로딩 중...</div>`;
+      viewer.setSupercell(supercell);
+      viewer.loadFromURL(meta.cif, key)
+        .then(() => {
+          updateCaption();
+        })
+        .catch(err => {
+          loading.innerHTML = `
+            <div style="color:var(--err); padding:1rem; text-align:center;">
+              <div style="font-size:1.8rem; margin-bottom:0.5rem;">⚠</div>
+              <strong>${meta.name}</strong> 결정 구조를 불러올 수 없습니다.
+              <div style="margin-top:0.7rem; color:var(--txm); font-size:0.82rem; line-height:1.55;">
+                <code>npm start</code>로 로컬 서버 실행 후 접속하세요.<br>
+                <span style="opacity:0.7;">(${String(err.message || err)})</span>
+              </div>
+            </div>`;
+          console.error('MOF load error:', err);
+        });
+    }
+
+    function updateCaption() {
+      const meta = MV.REGISTRY[currentMOF];
+      const cap  = document.getElementById('viewerCaption');
+      if (cap && meta) {
+        cap.innerHTML = `🔬 <strong>${meta.name}</strong> · ${meta.formula} · ${meta.pores}` +
+                        (supercell > 1 ? ` · ${supercell}×${supercell}×${supercell} 슈퍼셀` : '');
+      }
+    }
+
+    function renderPoreLegend(pores) {
+      const el = document.getElementById('poreLegend');
+      if (!el) return;
+      const buckets = new Map(); // bucket → {hex, label, count, sample}
+      pores.forEach(p => {
+        const col = MV.poreColor(p.radius);
+        const cur = buckets.get(col.bucket) || { hex: col.hex, label: col.label, count: 0, radii: [] };
+        cur.count++;
+        cur.radii.push(p.radius);
+        buckets.set(col.bucket, cur);
+      });
+      const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+      el.innerHTML = `
+        <span style="font-size:0.7rem; color:var(--txm); font-family:'Orbitron'; letter-spacing:0.06em;">기공 색상:</span>
+        ${sorted.map(([_, b]) => `
+          <span class="pl-item" style="color:${b.hex}">
+            <span class="pl-dot" style="background:${b.hex}"></span>
+            <span style="color:var(--txm);">${b.label} · <strong style="color:${b.hex};">${b.count}개</strong></span>
+          </span>
+        `).join('') || '<span class="muted" style="font-size:.74rem;">기공이 탐지되지 않았습니다</span>'}
+      `;
+    }
+
+    /* ---- toolbar wiring ---- */
+    document.querySelectorAll('#mofSelect .vbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mofSelect .vbtn').forEach(b => b.classList.toggle('active', b === btn));
+        loadMOF(btn.dataset.mof);
+      });
+    });
+    document.querySelectorAll('#cellSelect .vbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#cellSelect .vbtn').forEach(b => b.classList.toggle('active', b === btn));
+        supercell = parseInt(btn.dataset.n, 10);
+        loadMOF(currentMOF);  // reload with new supercell
+      });
+    });
+    document.getElementById('togglePores').addEventListener('click', e => {
+      showPores = !showPores;
+      e.currentTarget.classList.toggle('active', showPores);
+      e.currentTarget.classList.toggle('off',   !showPores);
+      viewer.setPoreVisibility(showPores);
+    });
+    document.getElementById('toggleBonds').addEventListener('click', e => {
+      showBonds = !showBonds;
+      e.currentTarget.classList.toggle('active', showBonds);
+      e.currentTarget.classList.toggle('off',   !showBonds);
+      viewer.setBondVisibility(showBonds);
+    });
+    if (resetBtn) resetBtn.addEventListener('click', () => viewer.resetCamera());
+
+    /* ---- info panel handlers ---- */
+    function metalName(el) {
+      return ({ Cu: '구리', Zn: '아연', Zr: '지르코늄', Cr: '크롬' })[el] || el;
+    }
+    function showMetal(el) {
+      const desc = ({
+        Cu: 'HKUST-1의 패들휠 클러스터 — 두 개의 Cu 이온이 4개의 카르복실기 산소와 결합. CO₂·H₂O 흡착자리(외부 빈자리)로 활용.',
+        Zn: 'MOF-5의 Zn₄O 사면체 클러스터 — 4개의 Zn 이온이 중심 산소를 둘러싸고 BDC 카르복실기와 결합. 결정의 모서리.',
+        Zr: 'UiO-66의 Zr₆O₄(OH)₄ 옥타헤드론 — 6개의 Zr 이온이 8개의 산소/하이드록시드와 결합한 매우 안정한 클러스터. 열·물·산 안정성 최강.',
+        Cr: 'MIL 계열에서 사용되는 크롬 클러스터로 거대 cage를 형성.',
+      })[el] || '금속 노드는 격자의 모서리 역할을 합니다.';
+      info.innerHTML = `
+        <h4 style="color:#fb923c;">🟠 금속 노드 (${metalName(el)})</h4>
+        <p class="muted" style="margin-bottom:0.8rem;">SBU · Secondary Building Unit</p>
+        <p>${desc}</p>
+        <ul style="margin-top:0.75rem; padding-left:1.1rem; color:var(--txm); font-size:0.88rem; line-height:1.75;">
+          <li><strong>역할</strong>: 격자의 모서리·관절 + 활성 자리</li>
+          <li><strong>색상(이 뷰어)</strong>: ${({Cu:'주황',Zn:'은회색',Zr:'시안',Cr:'보라'})[el] || '주황'}</li>
+          <li><strong>결합</strong>: 카르복실기 O와 강한 배위결합</li>
+        </ul>
+      `;
+      info.querySelector('h4').style.animation = 'fadeIn 0.4s ease both';
+    }
+
+    function showLigand(el) {
+      const elemDesc = el === 'C' ? '탄소 (벤젠 고리 또는 카르복실기의 일부)'
+                     : el === 'O' ? '산소 (카르복실기 -COOH의 일부)'
+                     : el === 'N' ? '질소 (이미다졸 고리의 일부, ZIF계)'
+                     :              '수소 (벤젠 고리 C-H)';
+      info.innerHTML = `
+        <h4 style="color:var(--bl2);">🔵 유기 리간드 (Linker)</h4>
+        <p class="muted" style="margin-bottom:0.8rem;">${elemDesc}</p>
+        <p>금속 노드 사이를 잇는 <strong>막대</strong> 역할을 합니다. 양 끝의 카르복실기(-COOH)가 금속 이온과 결합해 격자가 만들어집니다. MOF 종류별로 다른 리간드를 사용해 기공 크기와 화학적 성질을 조절합니다.</p>
+        <div class="ligand-diagrams">
+          ${btcSvg()}
+          ${bdcSvg()}
+        </div>
+      `;
+      info.querySelector('h4').style.animation = 'fadeIn 0.4s ease both';
+    }
+
+    function showPore(pore) {
+      const col = MV.poreColor(pore.radius);
+      info.innerHTML = `
+        <h4 style="color:${col.hex};">🔷 기공 (Pore)</h4>
+        <p class="muted" style="margin-bottom:0.8rem;">반지름 약 <strong style="color:${col.hex}">${pore.radius.toFixed(2)} Å</strong> · ${col.label}</p>
+        <p>이 빈 공간이 바로 MOF의 <strong>기공</strong>입니다. 다른 분자가 들어와 흡착되는 '방'이며, 균일한 크기 덕분에 분자 크기에 따른 선택적 흡착(분자체 효과)이 가능합니다.</p>
+        <div style="margin-top:1rem; padding:0.85rem; background:rgba(255,255,255,0.04); border:1px solid ${col.hex}55; border-radius:10px; text-align:center;">
+          <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">기공 지름 ≈</div>
+          <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:${col.hex};">${(pore.radius*2).toFixed(1)} Å</div>
+        </div>
+        <p class="muted" style="margin-top:0.85rem; font-size:0.82rem;">
+          → 동일한 MOF 안에 <strong>서로 다른 크기의 기공</strong>이 공존할 수 있습니다. 색상 범례를 확인해보세요!
+        </p>
+      `;
+      info.querySelector('h4').style.animation = 'fadeIn 0.4s ease both';
+    }
 
     /* ----- CIF parser (VESTA-style) ----- */
     function parseCIF(text) {
