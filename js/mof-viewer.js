@@ -486,6 +486,19 @@
       const txt = await r.text();
       return loadFromText(txt, key);
     }
+    /**
+     * Robust loader. Tries the inline `window.MOF_CIF_DATA[key]` first
+     * (so the page works via file://), falling back to fetch() of the
+     * registered CIF URL. Use this in app code rather than loadFromURL.
+     */
+    async function loadFromKey(key) {
+      if (window.MOF_CIF_DATA && window.MOF_CIF_DATA[key]) {
+        return loadFromText(window.MOF_CIF_DATA[key], key);
+      }
+      const meta = REGISTRY[key];
+      if (!meta) throw new Error('Unknown MOF key: ' + key);
+      return loadFromURL(meta.cif, key);
+    }
     function setSupercell(n) {
       // Pure config update — caller must call loadFromURL again to rebuild.
       cfg.supercell = Math.max(1, Math.min(3, n));
@@ -656,7 +669,7 @@
     }
 
     return {
-      loadFromText, loadFromURL,
+      loadFromText, loadFromURL, loadFromKey,
       setSupercell, setPoreVisibility, setBondVisibility, setAtomVisibility, revealPore,
       resetCamera, setAutoRotate,
       pores, mofKey,

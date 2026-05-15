@@ -520,6 +520,99 @@
     ctx.shadowBlur = 0;
   }
 
+  /* ---------- Hover tooltip (2D game) ---------- */
+  const atomTip = document.getElementById('atomTip');
+  const TIP_INFO = {
+    cu: {
+      title: 'Cu²⁺ (구리 노드)',
+      body: 'HKUST-1의 모서리. 두 개의 구리 이온이 패들휠 클러스터를 이루고, 그 양쪽으로 BTC의 카르복실기 산소 4개가 결합합니다. CO₂·H₂O 흡착 자리로 활용됩니다.',
+      formula: 'Cu (구리)',
+    },
+    linker: {
+      title: 'BTC 리간드',
+      body: '1,3,5-벤젠트리카복실산 — 벤젠 고리에 -COOH 3개가 평면 삼각형으로 붙은 평판 분자. 카르복실기의 산소가 Cu 노드 4개에 동시에 결합해 격자를 만듭니다.',
+      formula: 'C₉H₆O₆ (BTC)',
+    },
+  };
+  function identifyAt(x, y) {
+    if (!state.cellW) return null;
+    // intersections (Cu)
+    const tolCu = 14;
+    for (let r = 0; r <= state.rows; r++) {
+      for (let c = 0; c <= state.cols; c++) {
+        const xx = state.pad + state.cellW * c;
+        const yy = state.pad + state.cellH * r;
+        if (Math.hypot(x - xx, y - yy) < tolCu) return 'cu';
+      }
+    }
+    // edges (linkers)
+    const tolL = 10;
+    for (let r = 0; r < state.rows; r++) {
+      for (let c = 0; c < state.cols; c++) {
+        if (c < state.cols - 1) {
+          const xx = state.pad + state.cellW * (c + 1);
+          const yy = state.pad + state.cellH * (r + 0.5);
+          if (Math.hypot(x - xx, y - yy) < tolL) return 'linker';
+        }
+        if (r < state.rows - 1) {
+          const xx = state.pad + state.cellW * (c + 0.5);
+          const yy = state.pad + state.cellH * (r + 1);
+          if (Math.hypot(x - xx, y - yy) < tolL) return 'linker';
+        }
+      }
+    }
+    return null;
+  }
+  cv.addEventListener('mousemove', e => {
+    if (!state.running) { atomTip && atomTip.classList.remove('show'); return; }
+    const rect = cv.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const kind = identifyAt(x, y);
+    if (!kind || !atomTip) { atomTip && atomTip.classList.remove('show'); cv.style.cursor = 'crosshair'; return; }
+    const info = TIP_INFO[kind];
+    atomTip.innerHTML = `
+      <strong>${info.title}</strong><br>
+      <span class="formula">${info.formula}</span><br>
+      <span>${info.body}</span>
+    `;
+    atomTip.classList.add('show');
+    // position with offset, keep inside board
+    const tx = Math.min(x + 18, rect.width  - 240);
+    const ty = Math.min(y + 14, rect.height - 110);
+    atomTip.style.left = tx + 'px';
+    atomTip.style.top  = ty + 'px';
+    cv.style.cursor = 'help';
+  });
+  cv.addEventListener('mouseleave', () => { atomTip && atomTip.classList.remove('show'); });
+
+  /* ---------- Pore-found explanation ---------- */
+  const PORE_FACTS = [
+    '이 빈 공간은 Cu 노드 사이의 ‘방’으로, 약 9 Å 크기로 CO₂·N₂·CH₄ 같은 작은 분자가 통과·흡착됩니다.',
+    'HKUST-1은 큰 기공(~9 Å)과 작은 기공(~5 Å)이 함께 존재하는 이중 기공 구조입니다.',
+    'BTC 리간드가 평면 삼각형으로 배치되며 그 사이에 균일한 크기의 기공이 생깁니다.',
+    '균일한 기공 덕분에 분자 크기에 따라 선택적으로 흡착되는 ‘분자체(molecular sieve)’ 역할을 합니다.',
+    '1 g의 HKUST-1 결정에 약 1,500 m² (= 축구장 1/5)의 표면적이 들어있습니다.',
+    '기공 안쪽 Cu²⁺의 빈 자리는 CO₂ 분자를 끌어당기는 활성점으로 작동합니다.',
+  ];
+  function showPoreExplainer() {
+    const el = document.getElementById('poreExplainer');
+    if (!el) return;
+    const fact = PORE_FACTS[Math.floor(Math.random() * PORE_FACTS.length)];
+    el.innerHTML = `
+      <div class="pe-inner">
+        <h5>💡 왜 여기가 기공이지?</h5>
+        <div>이 위치는 격자의 <strong>셀 중앙</strong>으로, 주변에 4개의 Cu 노드와 그 사이를 잇는 BTC 리간드가 둘러싸고 있어요. 골격이 닿지 않는 비어 있는 공간이 정확히 이 셀 한복판에 형성됩니다.</div>
+        <div class="pe-fact">📌 ${fact}</div>
+      </div>
+    `;
+    el.classList.add('show');
+    clearTimeout(showPoreExplainer._t);
+    showPoreExplainer._t = setTimeout(() => {
+      el.classList.remove('show');
+      el.innerHTML = '';
+    }, 6500);
+  }
+
   /* ---------- Interaction ---------- */
   cv.addEventListener('click', e => {
     if (!state.running) return;
@@ -551,6 +644,7 @@
       pushToast(x, y, '+' + pts, '#22c55e');
       SFX.hit(state.combo);
       if (state.combo >= 2 && state.combo <= 5) SFX.combo(state.combo);
+      showPoreExplainer();
       updateHud();
       // any left?
       const left = state.cells.filter(c => c.isPore && !c.found).length;
@@ -636,6 +730,10 @@
   function endGame(victorious) {
     state.running = false;
     stopTimer();
+    const tip = document.getElementById('atomTip');
+    if (tip) tip.classList.remove('show');
+    const exp = document.getElementById('poreExplainer');
+    if (exp) { exp.classList.remove('show'); exp.innerHTML = ''; }
     const elapsed = state.cfg.time > 0
       ? (state.cfg.time - state.timeLeft)
       : Math.floor((Date.now() - state.startedAt) / 1000);
@@ -847,7 +945,7 @@
       },
     });
 
-    pore3d.viewer.loadFromURL(pore3d.mof.cif, pore3d.mof.id).catch(err => {
+    pore3d.viewer.loadFromKey(pore3d.mof.id).catch(err => {
       loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ ${pore3d.mof.name} 로드 실패<br><span style="font-size:0.82rem; opacity:0.7;">${String(err.message || err)}</span></div>`;
     });
   }
@@ -1029,7 +1127,7 @@
       onEmptyClick: () => {},
       onReady: () => { loading.style.display = 'none'; },
     });
-    det.viewer.loadFromURL(correct.cif, correctKey).catch(err => {
+    det.viewer.loadFromKey(correctKey).catch(err => {
       loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ 로드 실패<br><span style="font-size:0.82rem;">${String(err.message || err)}</span></div>`;
     });
   }

@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loading.style.display = 'flex';
       loading.innerHTML = `<div class="viewer-spinner"></div><div>${meta.name} 결정 구조 로딩 중...</div>`;
       viewer.setSupercell(supercell);
-      viewer.loadFromURL(meta.cif, key)
+      viewer.loadFromKey(key)
         .then(() => {
           updateCaption();
         })
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div style="font-size:1.8rem; margin-bottom:0.5rem;">⚠</div>
               <strong>${meta.name}</strong> 결정 구조를 불러올 수 없습니다.
               <div style="margin-top:0.7rem; color:var(--txm); font-size:0.82rem; line-height:1.55;">
-                <code>npm start</code>로 로컬 서버 실행 후 접속하세요.<br>
+                CIF 데이터가 손상되었거나 Three.js를 불러올 수 없습니다.<br>
                 <span style="opacity:0.7;">(${String(err.message || err)})</span>
               </div>
             </div>`;
