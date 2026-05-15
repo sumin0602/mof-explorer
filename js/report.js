@@ -46,14 +46,35 @@
   const STORAGE_KEY = 'mof_report';
 
   /* ---------- Backend detection ---------- */
-  let SERVER = { available: false, ai: false, model: null };
+  // The AI proxy lives at one of these places, in priority order:
+  //   1. window.MOF_API_BASE (set inline in report.html for manual override)
+  //   2. https://api.mof-explorer.com  (production: separate Vercel subdomain)
+  //   3. '' (same origin — works for `npm start` local Express server)
+  function apiBase() {
+    // 1) explicit override (e.g. inline <script> in report.html)
+    if (typeof window.MOF_API_BASE === 'string') return window.MOF_API_BASE;
+    const h = location.hostname;
+    // 2) local dev or same-origin host (Express + frontend together)
+    if (!h || h === 'localhost' || h === '127.0.0.1') return '';
+    // 3) hosted on Vercel directly → API is same origin
+    if (h.endsWith('.vercel.app')) return '';
+    // 4) production default — separate API subdomain
+    return 'https://api.mof-explorer.com';
+  }
+  const API_BASE = apiBase();
+
+  let SERVER = { available: false, ai: false, model: null, db: false };
   (async function probe() {
     try {
-      const r = await fetch('/api/health', { cache: 'no-store' });
+      const r = await fetch(API_BASE + '/api/health', { cache: 'no-store' });
       if (r.ok) {
         const j = await r.json();
-        SERVER = { available: true, ai: !!j.ai, model: j.model || null };
-        // surface status to the AI intro pane
+        SERVER = {
+          available: true,
+          ai: !!j.ai,
+          model: j.model || null,
+          db: !!j.db,
+        };
         const intro = document.getElementById('aiIntro');
         if (intro && SERVER.ai) {
           const p = intro.querySelector('p.muted');
@@ -65,8 +86,10 @@
   })();
 
   function showServerBanner() {
-    if (!SERVER.available) return;
-    // add a "save to server" button in step 5 if backend is up
+    // Only show "save to server" if the backend actually has a DB
+    // (Express + SQLite during `npm start`). On Vercel-only deployments,
+    // there's no persistent storage, so we hide the button.
+    if (!SERVER.available || !SERVER.db) return;
     const saveBox = document.getElementById('serverSaveBox');
     if (saveBox) saveBox.style.display = 'block';
   }
@@ -300,7 +323,7 @@
         refs:       val('f_ref'),
       };
 
-      const r = await fetch('/api/reports', {
+      const r = await fetch(API_BASE + '/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -370,7 +393,7 @@ MOF 이름: ${selMOF ? MOF_DATA[selMOF].name : '미선택'}
   async function callClaude(reportText) {
     // Prefer the backend proxy if available (keeps API key off the client + avoids CORS)
     if (SERVER.available && SERVER.ai) {
-      const r = await fetch('/api/ai-feedback', {
+      const r = await fetch(API_BASE + '/api/ai-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportText }),

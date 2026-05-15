@@ -1,0 +1,12 @@
+# Server-side artifacts that don't belong on Vercel
+server.js
+data.db
+data.db-journal
+data.db-wal
+data.db-shm
+
+# Secrets / local state
+.env
+.env.local
+.claude/
+*.log

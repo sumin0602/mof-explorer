@@ -83,7 +83,9 @@ app.get('/api/health', (req, res) => {
     ok: true,
     ai: Boolean(KEY),
     model: MODEL,
-    db: 'sqlite',
+    db: true,            // boolean — frontend keys on this
+    dbKind: 'sqlite',    // informational
+    runtime: 'express',
     time: Date.now(),
   });
 });
