@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="HKUST-1 결정 구조 안의 기공을 찾는 인터랙티브 게임. 2D 클래식 4종 + 3D 기공 헌트 + MOF 탐정 모드.">
+<meta name="description" content="MOF 학습 게임 — 3D 기공 헌트, MOF 탐정, 개념 OX 퀴즈, 기체 흡착 실험실, 용어 플래시카드 5종 모드.">
 <meta name="theme-color" content="#04091a">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<title>HKUST-1 기공 찾기 — MOF Explorer</title>
+<title>MOF 학습 게임 — MOF Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -296,59 +296,287 @@
     display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;
   }
 
-  /* ----- 2D game tooltip ----- */
   .board-wrap { position: relative; }
-  .atom-tip {
-    position: absolute;
-    pointer-events: none;
-    background: rgba(4,9,26,0.95);
-    border: 1px solid var(--bl2);
-    color: var(--tx);
-    font-size: 0.78rem;
-    padding: 0.45rem 0.7rem;
-    border-radius: 8px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-    z-index: 10;
-    max-width: 230px;
-    opacity: 0;
-    transition: opacity 0.14s ease;
-    line-height: 1.5;
-  }
-  .atom-tip.show { opacity: 1; }
-  .atom-tip strong { color: var(--bl2); font-family: 'Orbitron', sans-serif; }
-  .atom-tip .formula { font-family: 'JetBrains Mono', monospace; color: var(--cu); font-size: 0.74rem; }
 
-  /* ----- pore-found explainer card ----- */
-  .pore-explainer {
-    margin-top: 0.75rem;
-    min-height: 0;
+  /* ============== Concept Quiz ============== */
+  .quiz-hud {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 0.75rem; flex-wrap: wrap;
+  }
+  .quiz-timer-bar {
+    height: 6px;
+    background: rgba(4,9,26,0.6);
+    border-radius: 100px;
     overflow: hidden;
-    transition: min-height 0.3s ease;
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
   }
-  .pore-explainer.show {
-    min-height: 100px;
+  .quiz-timer-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    transition: width 0.3s ease, background 0.3s ease;
   }
-  .pore-explainer .pe-inner {
-    background: rgba(34,197,94,0.08);
-    border: 1px solid rgba(34,197,94,0.35);
-    border-radius: 12px;
-    padding: 0.85rem 1rem;
-    font-size: 0.88rem;
-    color: var(--tx);
-    line-height: 1.6;
-    animation: fadeIn 0.4s ease both;
+  .quiz-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    min-height: 320px;
   }
-  .pore-explainer h5 {
-    color: var(--ok);
+  .quiz-type-badge {
+    display: inline-block;
+    padding: 0.3rem 0.85rem;
+    background: rgba(96,165,250,0.15);
+    border: 1px solid rgba(96,165,250,0.4);
+    color: var(--bl2);
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.92rem;
-    margin-bottom: 0.4rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    border-radius: 100px;
+    margin-bottom: 1rem;
   }
-  .pore-explainer .pe-fact {
+  .quiz-question {
+    font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    color: var(--tx);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 500;
+    max-width: 760px;
+    margin-left: auto; margin-right: auto;
+  }
+  .quiz-ox-buttons {
+    display: none; gap: 1rem;
+    justify-content: center; flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  .quiz-ox-btn {
+    flex: 1; min-width: 200px; max-width: 280px;
+    padding: 1.5rem 1rem;
+    font-size: 1.3rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    background: rgba(37,99,235,0.10);
+    border: 2px solid var(--border);
+    color: var(--tx);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .quiz-ox-btn:hover { border-color: var(--bl2); background: rgba(37,99,235,0.20); }
+  .quiz-mc-buttons {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.6rem;
+    max-width: 780px;
+    margin: 1rem auto 0;
+  }
+  .quiz-mc-btn {
+    padding: 0.85rem 1rem;
+    background: rgba(4,9,26,0.55);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-size: 0.95rem;
+    text-align: left;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .quiz-mc-btn:hover { border-color: var(--bl2); background: rgba(37,99,235,0.10); }
+  .quiz-mc-num {
+    display: inline-block; min-width: 22px;
+    color: var(--bl2); font-family: 'Orbitron'; font-weight: 700;
+  }
+  .quiz-ox-btn.correct, .quiz-mc-btn.correct {
+    background: rgba(34,197,94,0.20);
+    border-color: var(--ok); color: var(--ok);
+    animation: pulse 0.5s ease;
+  }
+  .quiz-ox-btn.wrong, .quiz-mc-btn.wrong {
+    background: rgba(239,68,68,0.18);
+    border-color: var(--err); color: var(--err);
+  }
+  .quiz-ox-btn.disabled, .quiz-mc-btn.disabled { pointer-events: none; opacity: 0.65; }
+  .quiz-feedback {
+    margin-top: 1.25rem; padding: 0.75rem 1rem;
+    background: rgba(4,9,26,0.4); border-radius: 10px;
+    display: none; max-width: 720px; margin-left: auto; margin-right: auto;
+    text-align: left;
+    border-left: 4px solid var(--border);
+  }
+  .quiz-feedback.show { display: block; animation: fadeIn 0.3s ease both; }
+  .quiz-feedback .qf-good { color: var(--ok); font-weight: 600; margin-bottom: 0.35rem; }
+  .quiz-feedback .qf-bad  { color: var(--err); font-weight: 600; margin-bottom: 0.35rem; }
+  .quiz-feedback .qf-exp  { color: var(--txm); font-size: 0.9rem; line-height: 1.65; }
+
+  /* ============== Adsorption Lab ============== */
+  .ads-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
     margin-top: 0.5rem;
-    font-size: 0.82rem;
+  }
+  @media (max-width: 720px) { .ads-grid { grid-template-columns: 1fr; } }
+  .ads-mof-panel, .ads-right-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .ads-mof-label {
+    font-family: 'Orbitron'; font-size: 0.7rem;
+    color: var(--txm); letter-spacing: 0.1em;
+  }
+  .ads-mof-name {
+    font-family: 'Orbitron'; font-size: 1.6rem;
+    color: var(--cu); margin: 0.2rem 0 0.75rem;
+  }
+  .ads-mof-info {
+    color: var(--tx);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    padding: 0.65rem 0.85rem;
+    background: rgba(4,9,26,0.4);
+    border-left: 3px solid var(--bl2);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 1rem;
+  }
+  .ads-pore-visual {
+    background: rgba(4,9,26,0.6);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .ads-hint-txt {
+    color: var(--goldl); font-size: 0.82rem;
+    min-height: 1.2em;
+  }
+  .ads-question {
+    font-size: 1.05rem; font-weight: 500;
+    color: var(--bpal); margin-bottom: 1rem;
+  }
+  .ads-gases {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.6rem;
+  }
+  .ads-gas-card {
+    padding: 1.25rem 0.85rem;
+    background: rgba(37,99,235,0.10);
+    border: 2px solid var(--border);
+    color: var(--tx);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .ads-gas-card .gas-symbol {
+    font-family: 'Orbitron'; font-size: 1.4rem;
+    font-weight: 700; color: var(--bl2);
+  }
+  .ads-gas-card:hover { border-color: var(--bl2); transform: translateY(-2px); }
+  .ads-gas-card.disabled { pointer-events: none; }
+  .ads-gas-card.absorbed {
+    background: rgba(34,197,94,0.25);
+    border-color: var(--ok);
+    animation: absorbAnim 0.7s ease forwards;
+  }
+  .ads-gas-card.repelled {
+    background: rgba(239,68,68,0.20);
+    border-color: var(--err);
+    animation: repelAnim 0.5s ease forwards;
+  }
+  @keyframes absorbAnim {
+    0% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(0.92); opacity: 0.85; }
+    100% { transform: translateY(-40px) scale(0.6); opacity: 0; }
+  }
+  @keyframes repelAnim {
+    0% { transform: translate(0,0); }
+    20% { transform: translate(-12px, 8px); }
+    40% { transform: translate(10px, -6px); }
+    60% { transform: translate(-8px, 4px); }
+    100% { transform: translate(0,0); }
+  }
+  .ads-feedback {
+    margin-top: 1rem; padding: 0.75rem 1rem;
+    background: rgba(4,9,26,0.4); border-radius: 10px;
+    border-left: 4px solid var(--border);
+    color: var(--tx); font-size: 0.88rem; line-height: 1.6;
+    min-height: 2.5rem;
+  }
+  .ads-feedback .ads-good { color: var(--ok); font-weight: 600; margin-bottom: 0.3rem; }
+  .ads-feedback .ads-bad  { color: var(--err); font-weight: 600; margin-bottom: 0.3rem; }
+
+  /* ============== Flashcard Match ============== */
+  .fc-instructions {
+    text-align: center;
     color: var(--txm);
+    font-size: 0.85rem;
+    padding: 0.6rem;
+    background: rgba(4,9,26,0.4);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+  .fc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 1rem;
+  }
+  @media (max-width: 720px) { .fc-grid { grid-template-columns: 1fr; } }
+  .fc-col-label {
+    font-family: 'Orbitron'; font-size: 0.78rem;
+    color: var(--txm); letter-spacing: 0.06em;
+    margin-bottom: 0.5rem; text-align: center;
+  }
+  .fc-cards {
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .fc-card {
+    padding: 0.85rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .fc-card.fc-term {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.95rem;
+    text-align: center;
+    color: var(--bpal);
+  }
+  .fc-card:hover { border-color: var(--bl2); background: rgba(37,99,235,0.10); }
+  .fc-card.selected {
+    border-color: var(--goldl);
+    background: rgba(245,158,11,0.18);
+    color: var(--goldl);
+    box-shadow: 0 0 12px rgba(245,158,11,0.3);
+  }
+  .fc-card.done {
+    background: rgba(34,197,94,0.18);
+    border-color: var(--ok);
+    color: var(--ok);
+    animation: fcMatched 0.4s ease;
+    pointer-events: none;
+  }
+  .fc-card.shake-no {
+    animation: shake 0.4s ease;
+    border-color: var(--err);
+    background: rgba(239,68,68,0.15);
+  }
+  @keyframes fcMatched {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
   }
 
   /* ----- 3D viewer overlays in game ----- */
@@ -458,11 +686,11 @@
     <!-- ============ TITLE ============ -->
     <section class="screen active" id="screenTitle">
       <div class="title-head">
-        <h1>🎮 HKUST-1 기공 찾기</h1>
-        <p>구리 노드와 BTC 리간드로 짜여진 격자 안에 숨겨진 <strong>기공(pore)</strong>을 찾아보세요. 모드를 선택해 시작합니다.</p>
+        <h1>🎮 MOF 학습 게임</h1>
+        <p>3D 결정 구조 탐험부터 개념 퀴즈·기체 흡착 시뮬레이션·용어 매칭까지 — 다섯 가지 방식으로 <strong>MOF의 세계</strong>를 익혀보세요.</p>
       </div>
 
-      <div style="margin-bottom:0.5rem; color:var(--bl2); font-family:'Orbitron'; font-size:0.78rem; letter-spacing:0.1em; text-align:center;">— 3D MODES —</div>
+      <div style="margin-bottom:0.5rem; color:var(--bl2); font-family:'Orbitron'; font-size:0.78rem; letter-spacing:0.1em; text-align:center;">— 5가지 학습 게임 —</div>
       <div class="modes" id="modeCards">
         <div class="mode-card gold" data-mode="pore3d">
           <div class="icon">🧊</div>
@@ -474,25 +702,20 @@
           <h4>MOF 탐정</h4>
           <div class="meta">3D 구조 5문제<br>금속 노드·리간드 단서로<br>MOF 종류 맞히기</div>
         </div>
-        <div class="mode-card" data-mode="normal">
-          <div class="icon">🌟</div>
-          <h4>일반 모드 (2D)</h4>
-          <div class="meta">기공 5개<br>시간 무제한 · 페널티 없음<br>기공당 +10점</div>
+        <div class="mode-card" data-mode="quiz">
+          <div class="icon">🧠</div>
+          <h4>MOF 개념 마스터</h4>
+          <div class="meta">OX 10 + 4지선다 10 풀에서<br>10문제 랜덤 출제<br>빠른 정답 보너스 (+5점)</div>
         </div>
-        <div class="mode-card" data-mode="time">
-          <div class="icon">⏱</div>
-          <h4>타임 챌린지 (2D)</h4>
-          <div class="meta">기공 8개<br>제한 시간 30초<br>시간 보너스 +α</div>
+        <div class="mode-card" data-mode="adsorption">
+          <div class="icon">⚗️</div>
+          <h4>기체 분리 실험실</h4>
+          <div class="meta">MOF 5종 시나리오<br>가장 잘 흡착되는 기체 선택<br>정답 +20점, 힌트 −5점</div>
         </div>
-        <div class="mode-card" data-mode="hard">
-          <div class="icon">🔥</div>
-          <h4>하드 모드 (2D)</h4>
-          <div class="meta">기공 10개<br>오답 페널티 -5점<br>기공당 +15점</div>
-        </div>
-        <div class="mode-card" data-mode="blitz">
-          <div class="icon">⚡</div>
-          <h4>블리츠 (2D)</h4>
-          <div class="meta">기공 15개 · 9×7 격자<br>60초 안에 모두 찾기<br>오답 페널티 -3점</div>
+        <div class="mode-card" data-mode="flashcard">
+          <div class="icon">🃏</div>
+          <h4>MOF 플래시카드</h4>
+          <div class="meta">용어-설명 매칭<br>초급·중급·심화 3세트<br>오답수에 따라 별 1~3개</div>
         </div>
       </div>
 
@@ -518,40 +741,114 @@
       </div>
     </section>
 
-    <!-- ============ GAME ============ -->
-    <section class="screen" id="screenGame">
-      <div class="hud">
-        <div class="left">
-          <div class="score-box">
-            <div class="num" id="hudScore">0</div>
-            <div class="lbl">SCORE</div>
+    <!-- ============ CONCEPT QUIZ (🧠 MOF 개념 마스터) ============ -->
+    <section class="screen" id="screenQuiz">
+      <div class="quiz-hud">
+        <div class="score-box">
+          <div class="num" id="quizScore">0</div>
+          <div class="lbl">SCORE</div>
+        </div>
+        <div class="hud-stat">
+          <div class="num" id="quizProg">1 / 10</div>
+          <div class="lbl">진행</div>
+        </div>
+        <div class="hud-stat">
+          <div class="num" id="quizTimerTxt">20s</div>
+          <div class="lbl">남은 시간</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" id="quizMute" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 토글">🔊</button>
+        <button class="btn btn-ghost" id="quizQuit" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+      </div>
+
+      <div class="quiz-timer-bar"><div class="quiz-timer-fill" id="quizTimerFill"></div></div>
+
+      <div class="quiz-card">
+        <div class="quiz-type-badge" id="quizType">OX 문제</div>
+        <h2 class="quiz-question" id="quizQ">문제를 불러오는 중...</h2>
+
+        <div class="quiz-ox-buttons" id="quizOX"></div>
+        <div class="quiz-mc-buttons" id="quizMC"></div>
+
+        <div class="quiz-feedback" id="quizFeedback"></div>
+      </div>
+    </section>
+
+    <!-- ============ ADSORPTION LAB (⚗️ 기체 분리 실험실) ============ -->
+    <section class="screen" id="screenAdsorption">
+      <div class="quiz-hud">
+        <div class="score-box">
+          <div class="num" id="adsScore">0</div>
+          <div class="lbl">SCORE</div>
+        </div>
+        <div class="hud-stat">
+          <div class="num" id="adsRound">1 / 5</div>
+          <div class="lbl">라운드</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" id="adsHintBtn" style="font-size:0.8rem; padding:0.45rem 0.7rem;">💡 힌트 (-5점)</button>
+        <button class="btn btn-ghost" id="adsMute" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 토글">🔊</button>
+        <button class="btn btn-ghost" id="adsQuit" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
+      </div>
+
+      <div class="ads-grid">
+        <div class="ads-mof-panel">
+          <div class="ads-mof-label">MOF</div>
+          <h3 class="ads-mof-name" id="adsMofName">HKUST-1</h3>
+          <div class="ads-mof-info" id="adsMofInfo">정보 로딩 중...</div>
+          <div class="ads-pore-visual">
+            <svg viewBox="0 0 200 140" width="100%" height="auto">
+              <circle cx="40" cy="40" r="14" fill="#fb923c"/>
+              <circle cx="160" cy="40" r="14" fill="#fb923c"/>
+              <circle cx="40" cy="100" r="14" fill="#fb923c"/>
+              <circle cx="160" cy="100" r="14" fill="#fb923c"/>
+              <line x1="40" y1="40" x2="160" y2="40" stroke="#3b82f6" stroke-width="3"/>
+              <line x1="40" y1="100" x2="160" y2="100" stroke="#3b82f6" stroke-width="3"/>
+              <line x1="40" y1="40" x2="40" y2="100" stroke="#3b82f6" stroke-width="3"/>
+              <line x1="160" y1="40" x2="160" y2="100" stroke="#3b82f6" stroke-width="3"/>
+              <circle cx="100" cy="70" r="30" fill="rgba(6,182,212,0.18)" stroke="rgba(6,182,212,0.8)" stroke-width="1.5" stroke-dasharray="4 3"/>
+              <text x="100" y="74" text-anchor="middle" fill="#06b6d4" font-family="Orbitron" font-size="11" font-weight="700">PORE</text>
+            </svg>
           </div>
-          <div class="combo" id="comboBadge">COMBO ×<span id="comboNum">2</span></div>
+          <div class="ads-hint-txt" id="adsHintTxt"></div>
         </div>
-
-        <canvas class="timer-ring" id="timerRing" width="80" height="80"></canvas>
-
-        <div class="right">
-          <div class="hud-stat"><div class="num" id="hudPores">5</div><div class="lbl">남은 기공</div></div>
-          <div class="hud-stat"><div class="num" id="hudHints">2</div><div class="lbl">힌트</div></div>
-          <button class="btn btn-ghost" id="useHint"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="힌트 사용">💡 힌트</button>
-          <button class="btn btn-ghost" id="muteBtn"  style="font-size:0.8rem; padding:0.45rem 0.7rem;" title="사운드 켜기/끄기" aria-label="사운드 켜기/끄기">🔊</button>
-          <button class="btn btn-ghost" id="quitGame" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="게임 나가기">나가기</button>
+        <div class="ads-right-panel">
+          <div class="ads-question">💧 이 MOF에 가장 잘 흡착될 기체는?</div>
+          <div class="ads-gases" id="adsGases"></div>
+          <div class="ads-feedback" id="adsFeedback"></div>
         </div>
       </div>
+    </section>
 
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-
-      <div class="board-wrap" id="boardWrap">
-        <canvas id="gameCanvas"></canvas>
-        <div id="atomTip" class="atom-tip"></div>
+    <!-- ============ FLASHCARD (🃏 MOF 플래시카드) ============ -->
+    <section class="screen" id="screenFlashcard">
+      <div class="quiz-hud">
+        <div class="hud-stat">
+          <div class="num" id="fcSetName">초급 (1/3)</div>
+          <div class="lbl">난이도</div>
+        </div>
+        <div class="hud-stat">
+          <div class="num" id="fcMisses">0</div>
+          <div class="lbl">오답</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" id="fcMute" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 토글">🔊</button>
+        <button class="btn btn-ghost" id="fcQuit" style="font-size:0.8rem; padding:0.45rem 0.7rem;">나가기</button>
       </div>
 
-      <div class="pore-explainer" id="poreExplainer"></div>
+      <div class="fc-instructions">
+        🃏 왼쪽 <strong>용어 카드</strong>를 먼저 클릭한 뒤, 오른쪽에서 알맞은 <strong>설명 카드</strong>를 골라 짝지으세요.
+      </div>
 
-      <div class="game-bottom">
-        <div class="muted" style="font-size:0.85rem;">⚡ 셀 중심(빈 공간)을 클릭하세요. <strong>원자에 마우스를 올리면</strong> 무슨 분자인지 알 수 있어요.</div>
-        <div class="muted" style="font-size:0.85rem;" id="modeBadge">모드: -</div>
+      <div class="fc-grid">
+        <div class="fc-col">
+          <div class="fc-col-label">📚 용어</div>
+          <div class="fc-cards" id="fcTerms"></div>
+        </div>
+        <div class="fc-col">
+          <div class="fc-col-label">📖 설명</div>
+          <div class="fc-cards" id="fcDefs"></div>
+        </div>
       </div>
     </section>
 
@@ -655,6 +952,7 @@
 
         <div class="result-actions">
           <button class="btn btn-primary" id="retryBtn">같은 모드 다시</button>
+          <button class="btn btn-accent"  id="goReportBtn">📝 보고서 쓰러 가기</button>
           <button class="btn btn-ghost"   id="backHomeBtn">모드 선택</button>
         </div>
       </div>
