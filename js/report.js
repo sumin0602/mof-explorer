@@ -130,8 +130,78 @@
   }
 
   document.querySelectorAll('[data-go]').forEach(b => {
-    b.addEventListener('click', () => goStep(+b.dataset.go));
+    b.addEventListener('click', () => {
+      const target = +b.dataset.go;
+      // Only validate when MOVING FORWARD (target > current).
+      // Backward navigation is always allowed.
+      if (target > stepIdx) {
+        const err = validateStep(stepIdx);
+        if (err) {
+          showStepError(stepIdx, err);
+          return;
+        }
+      }
+      clearStepError(stepIdx);
+      goStep(target);
+    });
   });
+
+  /* ---------- Step validation (added per spec 수정 5/6/7) ---------- */
+  function validateStep(n) {
+    if (n === 1) {
+      if (!selMOF) return { target: '#mofPick', msg: '조사할 MOF를 선택해주세요.' };
+    }
+    if (n === 2) {
+      const fields = [
+        { id: 'f_formula', label: '화학식' },
+        { id: 'f_year',    label: '발견·합성 연도' },
+        { id: 'f_metal',   label: '구성 금속 이온' },
+        { id: 'f_ligand',  label: '유기 리간드' },
+        { id: 'f_pore',    label: '기공 크기' },
+        { id: 'f_sa',      label: '비표면적' },
+        { id: 'f_struct',  label: '구조 특징 설명' },
+      ];
+      for (const f of fields) {
+        if (!val(f.id)) return { target: '#' + f.id, msg: `${f.label}에 직접 조사한 내용을 입력해주세요.` };
+      }
+    }
+    if (n === 3) {
+      if (getCheckedApps().length === 0) {
+        return { target: '#appsPills', msg: '응용 분야를 1개 이상 선택해주세요.' };
+      }
+    }
+    return null;
+  }
+
+  function showStepError(step, err) {
+    // 1) box-shadow / outline on the offending region
+    const node = document.querySelector(err.target);
+    if (node) {
+      node.classList.add('field-error');
+      const focusEl = node.matches('input, textarea, select') ? node : null;
+      if (focusEl) focusEl.focus();
+      // also scroll into view
+      try { node.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+    }
+    // 2) inline banner under the step's "다음 →" action area
+    const sec = document.getElementById('step' + step);
+    if (!sec) return;
+    let banner = sec.querySelector('.step-error');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'step-error';
+      sec.querySelector('.step-actions')?.parentNode?.insertBefore(banner, sec.querySelector('.step-actions'));
+    }
+    banner.innerHTML = `⚠ ${err.msg}`;
+  }
+
+  function clearStepError(step) {
+    const sec = document.getElementById('step' + step);
+    if (!sec) return;
+    sec.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+    const banner = sec.querySelector('.step-error');
+    if (banner) banner.remove();
+  }
 
   /* ---------- Today's date ---------- */
   const todayInput = document.getElementById('f_date');
@@ -152,21 +222,11 @@
       selMOF = p.dataset.mof;
       const d = MOF_DATA[selMOF];
 
-      // autofill
-      set('f_formula', d.formula);
-      set('f_metal',   d.metal);
-      set('f_ligand',  d.ligand);
-      set('f_year',    d.year);
-      set('f_pore',    d.pore);
-      set('f_sa',      d.sa);
+      // NOTE (per spec 수정 7): NO autofill into form fields.
+      // The student must investigate and type each value themselves.
+      // The hint box still shows the canonical values as a *reference*
+      // so the student can verify their own research.
 
-      // auto-check applicable apps
-      document.querySelectorAll('#appsPills input').forEach(cb => {
-        cb.checked = d.apps.includes(cb.value);
-        cb.parentElement.classList.toggle('on', cb.checked);
-      });
-
-      // hint box
       const hint = document.getElementById('hintBox');
       const kv = document.getElementById('hintKv');
       kv.innerHTML = `
@@ -179,8 +239,9 @@
       `;
       hint.classList.add('show');
 
-      // recount char counters (struct text may be cleared / left as is)
-      countersUpdate();
+      // Clear any 1-step "select a MOF" warning
+      clearStepError(1);
+
       persist();
     });
   });

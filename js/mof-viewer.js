@@ -444,23 +444,91 @@
         }
       }
 
+      /* ----- Pore rendering -----
+         For UiO-66 we override sphere geometry with cage-accurate
+         Tetrahedron / Octahedron primitives and add triangular
+         windows between adjacent cages. See spec items 수정 1-3.        */
+      const useUiOCages = (currentMOF === 'uio66');
+
       pores.forEach(po => {
         const col = poreColor(po.radius);
-        const geom = new THREE.SphereGeometry(po.radius, 24, 16);
+        let geom, color, opacity, cageType, hex;
+
+        if (useUiOCages) {
+          // classify by radius: large → octahedral cage, small → tetrahedral
+          if (po.radius >= 4.5) {
+            cageType = 'octahedral';
+            color    = 0xFF8C00;
+            hex      = '#FF8C00';
+            opacity  = 0.35;
+            geom     = new THREE.OctahedronGeometry(po.radius * 1.25, 0);
+          } else {
+            cageType = 'tetrahedral';
+            color    = 0xFFD700;
+            hex      = '#FFD700';
+            opacity  = 0.35;
+            geom     = new THREE.TetrahedronGeometry(po.radius * 1.45, 0);
+          }
+        } else {
+          cageType = 'sphere';
+          color    = col.color;
+          hex      = col.hex;
+          opacity  = cfg.poreOpacity;
+          geom     = new THREE.SphereGeometry(po.radius, 24, 16);
+        }
+
         const mat = new THREE.MeshPhongMaterial({
-          color: col.color, transparent: true,
-          opacity: cfg.hiddenPores ? 0.0 : cfg.poreOpacity,
-          shininess: 120, emissive: col.color, emissiveIntensity: 0.32,
+          color, transparent: true,
+          opacity: cfg.hiddenPores ? 0.0 : opacity,
+          shininess: 120, emissive: color, emissiveIntensity: 0.32,
           depthWrite: false,
         });
         const m = new THREE.Mesh(geom, mat);
         m.position.copy(po.position);
-        m.userData = { isPore: true, radius: po.radius, bucket: col.bucket, hex: col.hex };
+        m.userData = {
+          isPore: true, cageType,
+          radius: po.radius, bucket: col.bucket, hex,
+        };
         m.visible = cfg.showPores;
         po.mesh = m;
+        po.cageType = cageType;
         po.found = !cfg.hiddenPores;
         poreGroup.add(m);
       });
+
+      // For UiO-66: add triangular-window connectors between adjacent
+      // tetrahedral and octahedral cages.
+      if (useUiOCages && pores.length > 1) {
+        const winGeom = new THREE.CylinderGeometry(0.9, 0.9, 1, 3, 1);
+        const winMat  = new THREE.MeshPhongMaterial({
+          color: 0x87CEEB, transparent: true,
+          opacity: cfg.hiddenPores ? 0.0 : 0.25,
+          emissive: 0x87CEEB, emissiveIntensity: 0.20,
+          depthWrite: false,
+        });
+        const upAxis = new THREE.Vector3(0, 1, 0);
+        // For each octahedral pore, connect to the 2-3 nearest tetrahedral pores
+        const tetPores = pores.filter(p => p.cageType === 'tetrahedral');
+        const octPores = pores.filter(p => p.cageType === 'octahedral');
+        octPores.forEach(oct => {
+          const sorted = tetPores
+            .map(t => ({ t, d: oct.position.distanceTo(t.position) }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, 3); // up to 3 nearest tetrahedral cages
+          sorted.forEach(({ t, d }) => {
+            if (d > 18) return; // skip very distant pairs
+            const mid = new THREE.Vector3().lerpVectors(oct.position, t.position, 0.5);
+            const dir = new THREE.Vector3().subVectors(t.position, oct.position);
+            const wm = new THREE.Mesh(winGeom, winMat);
+            wm.position.copy(mid);
+            wm.scale.y = d * 0.55;  // shorter than full distance
+            wm.quaternion.setFromUnitVectors(upAxis, dir.normalize());
+            wm.userData = { isPore: true, cageType: 'window', radius: 3, hex: '#87CEEB' };
+            wm.visible = cfg.showPores;
+            poreGroup.add(wm);
+          });
+        });
+      }
 
       currentPores = pores;
 
@@ -513,9 +581,20 @@
       cfg.showPores = !!v;
       poreGroup.visible = !!v;
       currentPores.forEach(p => p.mesh && (p.mesh.visible = !!v));
+      // also apply to any non-pore meshes in the group (UiO windows)
+      poreGroup.children.forEach(m => { m.visible = !!v; });
     }
     function setBondVisibility(v) { cfg.showBonds = !!v; bondGroup.visible = !!v; }
     function setAtomVisibility(v) { cfg.showAtoms = !!v; atomGroup.visible = !!v; }
+    /**
+     * Toggle a specific cage type ('tetrahedral' | 'octahedral' | 'window' | 'sphere').
+     * Used by structure.html to give UiO-66 three separate toggle buttons.
+     */
+    function setCageTypeVisibility(type, v) {
+      poreGroup.children.forEach(m => {
+        if (m.userData && m.userData.cageType === type) m.visible = !!v;
+      });
+    }
     function revealPore(idx) {
       const p = currentPores[idx];
       if (!p || p.found) return false;
@@ -547,8 +626,18 @@
       const visiblePores = poreGroup.children.filter(m => m.visible && m.material.opacity > 0.01);
       const ph = raycaster.intersectObjects(visiblePores);
       if (ph.length) {
-        const idx = currentPores.findIndex(p => p.mesh === ph[0].object);
-        handlers.onPoreClick({ index: idx, pore: currentPores[idx], world: ph[0].point });
+        const obj = ph[0].object;
+        const idx = currentPores.findIndex(p => p.mesh === obj);
+        // For meshes not in currentPores (e.g. UiO-66 windows) we still
+        // pass userData and world position so the caller can react.
+        const pore = idx >= 0
+          ? currentPores[idx]
+          : { position: obj.position.clone(), radius: obj.userData?.radius || 0,
+              cageType: obj.userData?.cageType };
+        handlers.onPoreClick({
+          index: idx, pore, world: ph[0].point,
+          cageType: obj.userData?.cageType,
+        });
         return;
       }
 
@@ -676,7 +765,9 @@
 
     return {
       loadFromText, loadFromURL, loadFromKey,
-      setSupercell, setPoreVisibility, setBondVisibility, setAtomVisibility, revealPore,
+      setSupercell, setPoreVisibility, setBondVisibility, setAtomVisibility,
+      setCageTypeVisibility,
+      revealPore,
       resetCamera, setAutoRotate,
       pores, mofKey,
       dispose,

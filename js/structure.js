@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (['Cu','Zn','Zr','Cr'].includes(element)) showMetal(element);
         else                                         showLigand(element);
       },
-      onPoreClick: ({ pore }) => showPore(pore),
+      onPoreClick: ({ pore, cageType }) => showPore(pore, cageType),
       onReady: ({ pores }) => {
         loading.style.display = 'none';
         renderPoreLegend(pores);
@@ -71,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const meta = MV.REGISTRY[key];
       if (!meta) return;
       currentMOF = key;
+      // sync UiO-66-specific toggle visibility (수정 2)
+      if (typeof syncToggleVisibility === 'function') syncToggleVisibility();
       loading.style.display = 'flex';
       loading.innerHTML = `<div class="viewer-spinner"></div><div>${meta.name} 결정 구조 로딩 중...</div>`;
       viewer.setSupercell(supercell);
@@ -96,8 +98,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const meta = MV.REGISTRY[currentMOF];
       const cap  = document.getElementById('viewerCaption');
       if (cap && meta) {
-        cap.innerHTML = `🔬 <strong>${meta.name}</strong> · ${meta.formula} · ${meta.pores}` +
-                        (supercell > 1 ? ` · ${supercell}×${supercell}×${supercell} 슈퍼셀` : '');
+        let html = `🔬 <strong>${meta.name}</strong> · ${meta.formula} · ${meta.pores}` +
+                   (supercell > 1 ? ` · ${supercell}×${supercell}×${supercell} 슈퍼셀` : '');
+        // UiO-66 dual-cage explanation (수정 4)
+        if (currentMOF === 'uio66') {
+          html += `
+            <div style="margin-top:0.6rem; padding:0.75rem 1rem; background:rgba(255,140,0,0.07);
+                        border:1px solid rgba(255,140,0,0.30); border-radius:10px;
+                        font-size:0.82rem; line-height:1.65; color:var(--tx); text-align:left;">
+              <strong style="color:#FF8C00;">🔬 UiO-66의 이중 기공 구조</strong><br>
+              UiO-66은 약 <strong style="color:#FFD700;">8 Å의 사면체형 기공</strong>과
+              약 <strong style="color:#FF8C00;">11 Å의 팔면체형 기공</strong>,
+              두 종류의 기공이 약 <strong style="color:#87CEEB;">6 Å의 삼각형 창</strong>으로
+              연결된 구조를 가집니다. Zr₆O₄(OH)₄ 클러스터의 높은 배위수(12)가 이 구조의
+              뛰어난 열·수분 안정성의 근거입니다.
+            </div>
+          `;
+        }
+        cap.innerHTML = html;
       }
     }
 
@@ -150,6 +168,39 @@ document.addEventListener('DOMContentLoaded', () => {
       e.currentTarget.classList.toggle('off',   !showBonds);
       viewer.setBondVisibility(showBonds);
     });
+
+    /* ---- UiO-66 전용 cage 토글 (수정 2) ---- */
+    function makeCageToggle(btnId, cageType, defaultOn = true) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      let on = defaultOn;
+      btn.addEventListener('click', () => {
+        on = !on;
+        btn.classList.toggle('active', on);
+        btn.classList.toggle('off',   !on);
+        viewer.setCageTypeVisibility(cageType, on);
+      });
+    }
+    makeCageToggle('toggleTet', 'tetrahedral');
+    makeCageToggle('toggleOct', 'octahedral');
+    makeCageToggle('toggleWin', 'window');
+
+    /**
+     * Show/hide the right set of toggles based on which MOF is loaded.
+     * UiO-66 → 3 cage-specific toggles, hide the generic 💎 button.
+     * Others  → single 💎 button, hide cage toggles.
+     */
+    function syncToggleVisibility() {
+      const isUio = currentMOF === 'uio66';
+      const generic = document.getElementById('togglePores');
+      if (generic) generic.style.display = isUio ? 'none' : '';
+      document.querySelectorAll('.uio-only').forEach(b => {
+        b.style.display = isUio ? '' : 'none';
+        // reset to active when shown
+        if (isUio) { b.classList.add('active'); b.classList.remove('off'); }
+      });
+    }
+
     if (resetBtn) resetBtn.addEventListener('click', () => viewer.resetCamera());
 
     // ⭐ Initial load — without this, the loading spinner stays forever.
@@ -196,20 +247,57 @@ document.addEventListener('DOMContentLoaded', () => {
       info.querySelector('h4').style.animation = 'fadeIn 0.4s ease both';
     }
 
-    function showPore(pore) {
-      const col = MV.poreColor(pore.radius);
-      info.innerHTML = `
-        <h4 style="color:${col.hex};">🔷 기공 (Pore)</h4>
-        <p class="muted" style="margin-bottom:0.8rem;">반지름 약 <strong style="color:${col.hex}">${pore.radius.toFixed(2)} Å</strong> · ${col.label}</p>
-        <p>이 빈 공간이 바로 MOF의 <strong>기공</strong>입니다. 다른 분자가 들어와 흡착되는 '방'이며, 균일한 크기 덕분에 분자 크기에 따른 선택적 흡착(분자체 효과)이 가능합니다.</p>
-        <div style="margin-top:1rem; padding:0.85rem; background:rgba(255,255,255,0.04); border:1px solid ${col.hex}55; border-radius:10px; text-align:center;">
-          <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">기공 지름 ≈</div>
-          <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:${col.hex};">${(pore.radius*2).toFixed(1)} Å</div>
-        </div>
-        <p class="muted" style="margin-top:0.85rem; font-size:0.82rem;">
-          → 동일한 MOF 안에 <strong>서로 다른 크기의 기공</strong>이 공존할 수 있습니다. 색상 범례를 확인해보세요!
-        </p>
-      `;
+    function showPore(pore, cageType) {
+      // UiO-66 cage-specific descriptions (수정 1·4)
+      if (cageType === 'tetrahedral') {
+        info.innerHTML = `
+          <h4 style="color:#FFD700;">🟡 사면체형 기공 (Tetrahedral Cage)</h4>
+          <p class="muted" style="margin-bottom:0.8rem;">크기 약 <strong style="color:#FFD700;">8 Å</strong> · UiO-66의 작은 기공</p>
+          <p>Zr₆ 클러스터 <strong>4개</strong>로 둘러싸인 작은 공간입니다. 작은 기체 분자(CO₂, N₂ 등)가 드나드는 통로 역할을 합니다.</p>
+          <div style="margin-top:1rem; padding:0.85rem; background:rgba(255,215,0,0.06); border:1px solid #FFD70055; border-radius:10px; text-align:center;">
+            <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">cage 지름 ≈</div>
+            <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:#FFD700;">8 Å</div>
+          </div>
+        `;
+      } else if (cageType === 'octahedral') {
+        info.innerHTML = `
+          <h4 style="color:#FF8C00;">🟠 팔면체형 기공 (Octahedral Cage)</h4>
+          <p class="muted" style="margin-bottom:0.8rem;">크기 약 <strong style="color:#FF8C00;">11 Å</strong> · UiO-66의 큰 기공</p>
+          <p>Zr₆ 클러스터 <strong>6개</strong>로 둘러싸인 넓은 공간입니다. 더 큰 분자의 흡착·저장이 이루어지는 주요 공간입니다.</p>
+          <div style="margin-top:1rem; padding:0.85rem; background:rgba(255,140,0,0.08); border:1px solid #FF8C0055; border-radius:10px; text-align:center;">
+            <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">cage 지름 ≈</div>
+            <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:#FF8C00;">11 Å</div>
+          </div>
+        `;
+      } else if (cageType === 'window') {
+        info.innerHTML = `
+          <h4 style="color:#87CEEB;">🔵 삼각형 창 (Triangular Window)</h4>
+          <p class="muted" style="margin-bottom:0.8rem;">크기 약 <strong style="color:#87CEEB;">6 Å</strong> · UiO-66의 통로</p>
+          <p>사면체·팔면체 기공을 연결하는 <strong>통로</strong>입니다. 이 창보다 큰 분자는 기공 간 이동이 제한됩니다.</p>
+          <div style="margin-top:1rem; padding:0.85rem; background:rgba(135,206,235,0.08); border:1px solid #87CEEB55; border-radius:10px; text-align:center;">
+            <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">창 지름 ≈</div>
+            <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:#87CEEB;">6 Å</div>
+          </div>
+          <p class="muted" style="margin-top:0.85rem; font-size:0.82rem;">
+            → UiO-66의 분자체(molecular sieve) 효과는 바로 이 창 크기가 결정합니다.
+          </p>
+        `;
+      } else {
+        // generic sphere pore (HKUST-1, MOF-5)
+        const col = MV.poreColor(pore.radius);
+        info.innerHTML = `
+          <h4 style="color:${col.hex};">🔷 기공 (Pore)</h4>
+          <p class="muted" style="margin-bottom:0.8rem;">반지름 약 <strong style="color:${col.hex}">${pore.radius.toFixed(2)} Å</strong> · ${col.label}</p>
+          <p>이 빈 공간이 바로 MOF의 <strong>기공</strong>입니다. 다른 분자가 들어와 흡착되는 '방'이며, 균일한 크기 덕분에 분자 크기에 따른 선택적 흡착(분자체 효과)이 가능합니다.</p>
+          <div style="margin-top:1rem; padding:0.85rem; background:rgba(255,255,255,0.04); border:1px solid ${col.hex}55; border-radius:10px; text-align:center;">
+            <div style="font-size:0.78rem; color:var(--txm); letter-spacing:0.06em;">기공 지름 ≈</div>
+            <div style="margin-top:0.3rem; font-family:'Orbitron'; font-size:1.8rem; font-weight:700; color:${col.hex};">${(pore.radius*2).toFixed(1)} Å</div>
+          </div>
+          <p class="muted" style="margin-top:0.85rem; font-size:0.82rem;">
+            → 동일한 MOF 안에 <strong>서로 다른 크기의 기공</strong>이 공존할 수 있습니다. 색상 범례를 확인해보세요!
+          </p>
+        `;
+      }
       info.querySelector('h4').style.animation = 'fadeIn 0.4s ease both';
     }
 
