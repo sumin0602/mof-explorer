@@ -10,3 +10,11 @@ data.db-shm
 .env.local
 .claude/
 *.log
+
+# Native app build output
+www/
+android/
+ios/
+_copyright/
+build-cap.js
+capacitor.config.json

@@ -1,0 +1,64 @@
+{
+  "name": "MOF Explorer — 나노 세계로의 탐험",
+  "short_name": "MOF Explorer",
+  "description": "고등학생을 위한 인터랙티브 MOF(금속-유기 골격체) 학습 플랫폼. 실제 결정 구조 3D 시각화, 5종 학습 게임, AI 자동 첨삭 보고서.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#04091a",
+  "theme_color": "#04091a",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["education", "science"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "MOF 구조 학습",
+      "short_name": "구조",
+      "description": "MOF 종류별 3D 결정 구조 관찰",
+      "url": "./structure.html",
+      "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "학습 게임",
+      "short_name": "게임",
+      "description": "MOF 개념 게임 5종",
+      "url": "./game.html",
+      "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "조사 보고서",
+      "short_name": "보고서",
+      "description": "AI 첨삭 보고서 작성",
+      "url": "./report.html",
+      "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

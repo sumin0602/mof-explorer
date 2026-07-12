@@ -1,12 +1,18 @@
 {
   "name": "mof-explorer",
   "version": "1.0.0",
-  "description": "고등학생을 위한 MOF(금속-유기 골격체) 학습 웹사이트 — 정적 페이지 + Google Gemini AI 프록시 + SQLite 보고서 DB",
+  "description": "고등학생을 위한 MOF(금속-유기 골격체) 학습 웹사이트 — 정적 페이지 + Google Gemini AI 프록시 + SQLite 보고서 DB + PWA + Capacitor 네이티브 앱",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "build:cap": "node build-cap.js",
+    "cap:sync": "npm run build:cap && npx cap sync",
+    "cap:add:android": "npm run build:cap && npx cap add android",
+    "cap:add:ios": "npm run build:cap && npx cap add ios",
+    "cap:android": "npm run cap:sync && npx cap open android",
+    "cap:ios": "npm run cap:sync && npx cap open ios"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -17,5 +23,11 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^11.3.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
   }
 }

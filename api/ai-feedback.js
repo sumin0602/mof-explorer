@@ -11,6 +11,10 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:8080',
   'http://localhost:3000',
   'http://127.0.0.1:8080',
+  // Capacitor WebView schemes — the packaged Android/iOS app uses one
+  // of these as its runtime origin.
+  'https://localhost',        // Android default (androidScheme=https)
+  'capacitor://localhost',    // iOS default (iosScheme=capacitor)
 ]);
 
 function setCors(req, res) {

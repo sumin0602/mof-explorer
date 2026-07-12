@@ -155,9 +155,61 @@
     tick();
   }
 
+  /* ----- PWA: service-worker registration + install prompt ----- */
+  function setupPWA() {
+    // 1) register the service worker (skips file:// where SW is banned)
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js', { scope: './' })
+          .catch(err => console.warn('[PWA] SW register failed:', err));
+      });
+    }
+
+    // 2) capture the install prompt and show a small "앱으로 설치" button
+    let deferred = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferred = e;
+      showInstallButton();
+    });
+    window.addEventListener('appinstalled', () => {
+      hideInstallButton();
+      deferred = null;
+    });
+
+    function showInstallButton() {
+      if (document.getElementById('pwaInstallBtn')) return;
+      const btn = document.createElement('button');
+      btn.id = 'pwaInstallBtn';
+      btn.setAttribute('aria-label', '앱으로 설치');
+      btn.innerHTML = '📲 앱으로 설치';
+      Object.assign(btn.style, {
+        position: 'fixed', bottom: '18px', right: '18px', zIndex: 200,
+        background: 'linear-gradient(135deg,#1e40af,#3b82f6)',
+        color: '#fff', border: 'none', borderRadius: '100px',
+        padding: '0.6rem 1.1rem', fontSize: '0.88rem', fontWeight: '600',
+        boxShadow: '0 6px 20px rgba(30,64,175,0.45)', cursor: 'pointer',
+        fontFamily: 'inherit',
+      });
+      btn.addEventListener('click', async () => {
+        if (!deferred) return;
+        deferred.prompt();
+        try { await deferred.userChoice; } catch (_) {}
+        deferred = null;
+        hideInstallButton();
+      });
+      document.body.appendChild(btn);
+    }
+    function hideInstallButton() {
+      const b = document.getElementById('pwaInstallBtn');
+      if (b) b.remove();
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     renderNav();
     setupParticles();
     renderFooter();
+    setupPWA();
   });
 })();
