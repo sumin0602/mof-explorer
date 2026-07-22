@@ -25,6 +25,7 @@ const FILES = [
   'HKUST1.cif',
   'MOF5.cif',
   'UiO-66.cif',
+  'ZIF-8_DDEC.cif',   // ← 추가
 ];
 
 const DIRS = ['css', 'js', 'icons'];
