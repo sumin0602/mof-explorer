@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MOF Explorer</string>
+    <string name="title_activity_main">MOF Explorer</string>
+    <string name="package_name">com.sumin0602.mofexplorer</string>
+    <string name="custom_url_scheme">com.sumin0602.mofexplorer</string>
+</resources>
