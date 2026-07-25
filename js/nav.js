@@ -155,8 +155,12 @@
     tick();
   }
 
-  /* ----- PWA: service-worker registration + install prompt ----- */
+/* ----- PWA: service-worker registration + install prompt ----- */
   function setupPWA() {
+    // 이미 네이티브 앱(Capacitor) 안에서 실행 중이면 설치 버튼 자체를 띄우지 않음
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (isNativeApp) return;
+
     // 1) register the service worker (skips file:// where SW is banned)
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       window.addEventListener('load', () => {
@@ -165,7 +169,16 @@
       });
     }
 
-    // 2) capture the install prompt and show a small "앱으로 설치" button
+    const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.sumin0602.mofexplorer';
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+      // 안드로이드 모바일 웹 → Play 스토어로 바로 연결
+      showStoreButton();
+      return;
+    }
+
+    // 2) (iOS/PC 등) 기존 PWA 설치 프롬프트 유지
     let deferred = null;
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -176,6 +189,26 @@
       hideInstallButton();
       deferred = null;
     });
+
+    function showStoreButton() {
+      if (document.getElementById('pwaInstallBtn')) return;
+      const btn = document.createElement('a');
+      btn.id = 'pwaInstallBtn';
+      btn.href = PLAY_STORE_URL;
+      btn.target = '_blank';
+      btn.rel = 'noopener';
+      btn.setAttribute('aria-label', 'Google Play에서 앱으로 설치');
+      btn.innerHTML = '📲 앱으로 설치';
+      Object.assign(btn.style, {
+        position: 'fixed', bottom: '18px', right: '18px', zIndex: 200,
+        background: 'linear-gradient(135deg,#1e40af,#3b82f6)',
+        color: '#fff', border: 'none', borderRadius: '100px',
+        padding: '0.6rem 1.1rem', fontSize: '0.88rem', fontWeight: '600',
+        boxShadow: '0 6px 20px rgba(30,64,175,0.45)', cursor: 'pointer',
+        fontFamily: 'inherit', textDecoration: 'none', display: 'inline-block',
+      });
+      document.body.appendChild(btn);
+    }
 
     function showInstallButton() {
       if (document.getElementById('pwaInstallBtn')) return;
