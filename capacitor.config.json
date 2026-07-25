@@ -19,6 +19,11 @@
     "limitsNavigationsToAppBoundDomains": false
   },
   "plugins": {
+   "StatusBar": {
+   "overlaysWebView": false,
+   "style": "DARK",
+   "backgroundColor": "#04091a"
+    },
     "SplashScreen": {
       "launchShowDuration": 800,
       "backgroundColor": "#04091a",
