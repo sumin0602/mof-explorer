@@ -48,6 +48,12 @@
   }
 
   function renderNav() {
+    // Android 15 엣지투엣지 강제 적용 대응: viewport-fit=cover 보장
+    let vp = document.querySelector('meta[name="viewport"]');
+    if (vp && !vp.content.includes('viewport-fit')) {
+      vp.content += ', viewport-fit=cover';
+    }
+
     const here = currentPage();
     const nav = document.createElement('nav');
     nav.className = 'nav';
