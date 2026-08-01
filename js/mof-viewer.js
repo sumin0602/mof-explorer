@@ -62,6 +62,25 @@
     { hex: '#ec4899', label: '특대형 (≥13 Å)' },
   ];
 
+  /* ----- 발견된 기공 표시용 링 텍스처 (캔버스 1장을 재사용) ----- */
+  let _poreRingTexture = null;
+  function poreRingTexture() {
+    if (_poreRingTexture) return _poreRingTexture;
+    const size = 256;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 10;
+    ctx.setLineDash([18, 14]);
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 12, 0, Math.PI * 2);
+    ctx.stroke();
+    _poreRingTexture = new THREE.CanvasTexture(cv);
+    return _poreRingTexture;
+  }
+
   /* ----- Bundled MOFs (CIF in project root) ----- */
   const REGISTRY = {
     hkust1: {
@@ -494,6 +513,20 @@
         po.cageType = cageType;
         po.found = !cfg.hiddenPores;
         poreGroup.add(m);
+// 발견 시 표시되는 테두리 링(유기 리간드 고리와 확실히 구분되는 시각 효과)
+        const ringMat = new THREE.SpriteMaterial({
+          map: poreRingTexture(),
+          color: hex.replace('#', '0x') | 0 || 0xffffff,
+          transparent: true,
+          depthWrite: false,
+          opacity: cfg.hiddenPores ? 0.0 : 0.95,
+        });
+        const ring = new THREE.Sprite(ringMat);
+        ring.scale.setScalar(po.radius * 2.5);
+        ring.position.copy(po.position);
+        ring.visible = cfg.showPores;
+        po.ringSprite = ring;
+        poreGroup.add(ring);
       });
 
       // For UiO-66: add triangular-window connectors between adjacent
@@ -580,8 +613,10 @@
     function setPoreVisibility(v) {
       cfg.showPores = !!v;
       poreGroup.visible = !!v;
-      currentPores.forEach(p => p.mesh && (p.mesh.visible = !!v));
-      // also apply to any non-pore meshes in the group (UiO windows)
+      currentPores.forEach(p => {
+        if (p.mesh) p.mesh.visible = !!v;
+        if (p.ringSprite) p.ringSprite.visible = !!v;
+      });
       poreGroup.children.forEach(m => { m.visible = !!v; });
     }
     function setBondVisibility(v) { cfg.showBonds = !!v; bondGroup.visible = !!v; }
@@ -595,7 +630,8 @@
         if (m.userData && m.userData.cageType === type) m.visible = !!v;
       });
     }
-    function revealPore(idx) {
+
+   function revealPore(idx) {
       const p = currentPores[idx];
       if (!p || p.found) return false;
       p.found = true;
@@ -603,8 +639,17 @@
         p.mesh.visible = true;
         p.mesh.material.opacity = cfg.poreOpacity;
       }
+      if (p.ringSprite) {
+        p.ringSprite.visible = true;
+        p.ringSprite.material.opacity = 0.95;
+        // 발견 순간 살짝 커졌다 줄어드는 팝 효과
+        const base = p.radius * 2.5;
+        p.ringSprite.scale.setScalar(base * 1.6);
+        setTimeout(() => { if (p.ringSprite) p.ringSprite.scale.setScalar(base); }, 220);
+      }
       return true;
     }
+
     function resetCamera() {
       view.rotX = 0.45; view.rotY = 0.7; view.zoom = 1; view.autoRotate = cfg.autoRotate;
     }
@@ -700,13 +745,39 @@
     function onDbl() { view.autoRotate = !view.autoRotate; }
 
     let tStart = null;
+    let pinchStartDist = null;
+    let pinchStartZoom = 1;
+
+    function touchDist(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    }
+
     function onTStart(e) {
       if (e.touches.length === 1) {
         tStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+        pinchStartDist = null;
+        view.autoRotate = false;
+      } else if (e.touches.length === 2) {
+        tStart = null;
+        pinchStartDist = touchDist(e.touches);
+        pinchStartZoom = view.zoom;
         view.autoRotate = false;
       }
     }
     function onTMove(e) {
+      if (e.touches.length === 2) {
+        if (pinchStartDist == null) {
+          pinchStartDist = touchDist(e.touches);
+          pinchStartZoom = view.zoom;
+          return;
+        }
+        const d = touchDist(e.touches);
+        const ratio = pinchStartDist / d; // 손가락 벌리면 확대
+        view.zoom = Math.max(0.3, Math.min(3.5, pinchStartZoom * ratio));
+        return;
+      }
       if (!tStart || e.touches.length !== 1) return;
       const t = e.touches[0];
       const dx = t.clientX - tStart.x;
@@ -717,11 +788,12 @@
       tStart.x = t.clientX; tStart.y = t.clientY;
     }
     function onTEnd(e) {
-      if (tStart && (Date.now() - tStart.t) < 250) {
+      if (e.touches.length === 0 && tStart && (Date.now() - tStart.t) < 250) {
         const ch = e.changedTouches[0];
         pickAt(ch.clientX, ch.clientY);
       }
-      tStart = null;
+      if (e.touches.length < 2) pinchStartDist = null;
+      if (e.touches.length === 0) tStart = null;
     }
 
     const dom = renderer.domElement;

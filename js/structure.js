@@ -842,10 +842,12 @@ document.addEventListener('DOMContentLoaded', () => {
     poreAnim.bgMols = MOLS.map((m, i) => ({
       sz: m.sz,
       name: m.name,
-      orbit: 0.55 + (i * 0.045),   // fraction of half-min dim
+      orbit: 0.55 + (i * 0.045),   // fraction of half-min dim (entry/exit distance)
       angle: (Math.PI * 2 * i) / MOLS.length + Math.random() * 0.4,
       speed: 0.0006 + Math.random() * 0.0008,
       r: 4 + Math.min(10, m.sz * 0.45),
+      travel: Math.random(),  // 0=진입 지점, 0.5=기공 중심, 1=반대편 출구
+      dir: 1,                 // 통과 불가 시 왕복(+1 접근 / -1 튕겨나감)
     }));
     // 14 inside particles
     poreAnim.inside = new Array(14).fill(0).map(() => ({
@@ -949,32 +951,43 @@ document.addEventListener('DOMContentLoaded', () => {
       pCtx.fill();
     });
 
-    // ---- floating molecules ----
+    // ---- 분자 통과 시뮬레이션 ----
+    // travel: 0(진입 지점) → 0.5(기공 정중앙) → 1(반대편 출구)를 오가는 진행도.
+    // 통과 가능(pass): 0→1까지 쭉 가로질러 통과한 뒤, 반대편에서 다시 진입.
+    // 통과 불가: 기공 가장자리(drawR)에 닿으면 튕겨서 다시 밖으로 되돌아감.
+    const TRAVEL_SPEED = 0.0022;
     poreAnim.bgMols.forEach((m, i) => {
-      m.angle += m.speed;
       const pass = p >= m.sz;
-      const dist = (m.orbit) * (minSide / 2) + Math.sin(t * 1.2 + i) * 4;
-      let x, y;
+      const farDist = m.orbit * (minSide / 2);
+      // 진행도 travel=0.5(중심)일 때 반지름 0, travel=0/1일 때 반지름 farDist
+      // → 기공 가장자리(drawR)에 닿는 travel 값을 역산
+      const edgeTravel = Math.max(0.02, Math.min(0.5,
+        (farDist - drawR - m.r * 0.6) / (2 * farDist)));
 
       if (pass) {
-        // attracted inward: orbit closer
-        const attract = (drawR + 18 + Math.sin(t * 2 + i) * 6);
-        x = cx + Math.cos(m.angle) * attract;
-        y = cy + Math.sin(m.angle) * attract;
+        m.travel += TRAVEL_SPEED + m.speed * 0.5;
+        if (m.travel > 1) m.travel -= 1; // 반대편으로 나간 뒤 다시 진입 지점부터 반복
       } else {
-        x = cx + Math.cos(m.angle) * dist;
-        y = cy + Math.sin(m.angle) * dist;
+        m.travel += m.dir * (TRAVEL_SPEED + m.speed * 0.5);
+        if (m.travel >= edgeTravel) { m.travel = edgeTravel; m.dir = -1; }
+        if (m.travel <= 0)          { m.travel = 0;          m.dir = 1;  }
       }
+
+      const x = cx + farDist * Math.cos(m.angle) * (1 - 2 * m.travel);
+      const y = cy + farDist * Math.sin(m.angle) * (1 - 2 * m.travel);
 
       // marker
       pCtx.save();
       if (pass) {
-        pCtx.shadowColor = 'rgba(34,197,94,0.7)';
-        pCtx.shadowBlur = 10;
-        pCtx.fillStyle = 'rgba(34,197,94,0.85)';
+        pCtx.shadowColor = 'rgba(34,197,94,0.75)';
+        pCtx.shadowBlur = 12;
+        pCtx.fillStyle = 'rgba(34,197,94,0.9)';
       } else {
-        pCtx.shadowBlur = 0;
-        pCtx.fillStyle = 'rgba(148,163,184,0.55)';
+        // 기공에 가까이 접근할수록(튕기기 직전) 붉은 경고색으로 전환
+        const nearEdge = m.travel / edgeTravel;
+        pCtx.shadowColor = nearEdge > 0.85 ? 'rgba(239,68,68,0.7)' : 'rgba(148,163,184,0.4)';
+        pCtx.shadowBlur = nearEdge > 0.85 ? 9 : 0;
+        pCtx.fillStyle = nearEdge > 0.85 ? 'rgba(239,68,68,0.85)' : 'rgba(148,163,184,0.55)';
       }
       pCtx.beginPath();
       pCtx.arc(x, y, m.r, 0, Math.PI * 2);
@@ -990,6 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pCtx.fillText(m.sz + 'Å', x, y - m.r - 7);
       }
     });
+
 
     // ---- center label ----
     const labelColor = isLight ? 'rgba(15,23,42,0.9)' : 'rgba(226,232,240,0.95)';
