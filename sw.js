@@ -1,9 +1,10 @@
 /* MOF Explorer — Service Worker
-   - Cache-first strategy for our static assets so the whole app
-     (HTML/CSS/JS/CIF data) works offline once installed.
+   - Network-first strategy for our static assets, so a fresh deploy is
+     picked up immediately without needing to remember to bump a cache
+     version by hand. Falls back to cache when offline.
    - Network-only for the AI feedback API (needs live Gemini calls). */
 
-const CACHE_NAME = 'mof-explorer-v3';
+const CACHE_NAME = 'mof-explorer-v4';
 const OFFLINE_ASSETS = [
   './',
   './index.html',
@@ -68,19 +69,16 @@ self.addEventListener('fetch', event => {
     url.host === 'generativelanguage.googleapis.com';
   if (isApi) return;
 
-  // Cache-first for everything else. Fall back to network. Fall back to
-  // whatever is already cached (offline).
+  // Network-first for everything else: try the live server so a fresh
+  // deploy shows up right away. Fall back to cache when offline/failed.
   event.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-      return fetch(req).then(res => {
-        if (res && res.ok && (res.type === 'basic' || res.type === 'cors')) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, clone));
-        }
-        return res;
-      }).catch(() => cached || Response.error());
-    })
+    fetch(req).then(res => {
+      if (res && res.ok && (res.type === 'basic' || res.type === 'cors')) {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, clone));
+      }
+      return res;
+    }).catch(() => caches.match(req).then(cached => cached || Response.error()))
   );
 });
 
