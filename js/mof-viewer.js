@@ -652,6 +652,20 @@
         if (p.ringSprite) p.ringSprite.visible = !!v && cfg.showPores;
       });
     }
+    /**
+     * Hide (or restore) a single pore by its index in currentPores.
+     * Used so students can tap pores in the 3D view to declutter it one
+     * at a time. Hidden pores are excluded from future raycasts (pickAt
+     * only considers m.visible meshes), so a hidden pore can't be
+     * re-tapped — restore it via setBucketVisibility(bucket, true) or by
+     * reloading the structure.
+     */
+    function setPoreIndexVisibility(idx, v) {
+      const p = currentPores[idx];
+      if (!p) return;
+      if (p.mesh)       p.mesh.visible       = !!v;
+      if (p.ringSprite) p.ringSprite.visible = !!v;
+    }
 
    function revealPore(idx) {
       const p = currentPores[idx];
@@ -860,7 +874,7 @@
     return {
       loadFromText, loadFromURL, loadFromKey,
       setSupercell, setPoreVisibility, setBondVisibility, setAtomVisibility,
-      setCageTypeVisibility, setBucketVisibility,
+      setCageTypeVisibility, setBucketVisibility, setPoreIndexVisibility,
       revealPore,
       resetCamera, setAutoRotate,
       pores, mofKey,
