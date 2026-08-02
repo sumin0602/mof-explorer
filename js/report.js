@@ -656,6 +656,132 @@ MOF 이름: ${selMOF ? MOF_DATA[selMOF].name : '미선택'}
     return String(s).replace(/\n/g, '<br>');
   }
 
+  /* ---------- MOF 질문 챗봇 ---------- */
+  (function initChat() {
+    const fab     = document.getElementById('chatFab');
+    const panel   = document.getElementById('chatPanel');
+    const closeBt = document.getElementById('chatClose');
+    const msgsEl  = document.getElementById('chatMessages');
+    const emptyEl = document.getElementById('chatEmpty');
+    const inputEl = document.getElementById('chatInput');
+    const sendBt  = document.getElementById('chatSend');
+    if (!fab || !panel) return;
+
+    let history = []; // [{role:'user'|'assistant', text}]
+    let sending = false;
+
+    function openPanel() {
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      fab.setAttribute('aria-expanded', 'true');
+      setTimeout(() => inputEl.focus(), 250);
+    }
+    function closePanel() {
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
+      fab.setAttribute('aria-expanded', 'false');
+    }
+    fab.addEventListener('click', () => {
+      panel.classList.contains('open') ? closePanel() : openPanel();
+    });
+    closeBt.addEventListener('click', closePanel);
+
+    document.querySelectorAll('.chat-suggest-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        inputEl.value = b.dataset.q || b.textContent;
+        sendMessage();
+      });
+    });
+
+    function addBubble(role, text) {
+      if (emptyEl) emptyEl.style.display = 'none';
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + (role === 'user' ? 'user' : role === 'error' ? 'error' : 'ai');
+      div.textContent = text;
+      msgsEl.appendChild(div);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      return div;
+    }
+
+    function addSources(afterEl, sources) {
+      if (!sources || !sources.length) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'chat-sources';
+      sources.forEach(s => {
+        const a = document.createElement('a');
+        a.className = 'chat-source-chip';
+        a.href = s.uri; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '🔗 ' + (s.title || s.uri);
+        wrap.appendChild(a);
+      });
+      afterEl.appendChild(wrap);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+
+    function addTyping() {
+      const div = document.createElement('div');
+      div.className = 'chat-msg ai';
+      div.innerHTML = '<div class="chat-typing"><span></span><span></span><span></span></div>';
+      msgsEl.appendChild(div);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      return div;
+    }
+
+    async function sendMessage() {
+      const q = inputEl.value.trim();
+      if (!q || sending) return;
+
+      if (!SERVER.available || !SERVER.ai) {
+        addBubble('user', q);
+        addBubble('error', '지금은 AI 서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.');
+        inputEl.value = '';
+        return;
+      }
+
+      sending = true;
+      sendBt.disabled = true;
+      inputEl.value = '';
+      addBubble('user', q);
+      history.push({ role: 'user', text: q });
+      const typingEl = addTyping();
+
+      const context = {
+        mof:     selMOF ? MOF_DATA[selMOF].name : '',
+        formula: val('f_formula'),
+        metal:   val('f_metal'),
+        ligand:  val('f_ligand'),
+      };
+
+      try {
+        const r = await fetch(API_BASE + '/api/report-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q, context, history: history.slice(-8) }),
+        });
+        const data = await r.json();
+        typingEl.remove();
+        if (!r.ok || data.error) {
+          addBubble('error', data.message || '답변을 가져오지 못했어요. 다시 시도해주세요.');
+          return;
+        }
+        const bubble = addBubble('ai', data.answer || '');
+        addSources(bubble, data.sources);
+        history.push({ role: 'assistant', text: data.answer || '' });
+      } catch (err) {
+        typingEl.remove();
+        addBubble('error', '네트워크 오류로 답변을 받지 못했어요.');
+      } finally {
+        sending = false;
+        sendBt.disabled = false;
+      }
+    }
+
+    sendBt.addEventListener('click', sendMessage);
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  })();
+
   /* ---------- Init step ---------- */
   goStep(1);
 

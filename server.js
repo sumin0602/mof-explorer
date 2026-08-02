@@ -197,6 +197,103 @@ improvedStruct는 "구조 특징 설명" 항목을 더 풍부하게 개선한 2~
   }
 });
 
+/* ---------- AI report chat (MOF Q&A, Google 검색 연동) ---------- */
+app.post('/api/report-chat', async (req, res) => {
+  try {
+    if (!KEY) {
+      return res.status(503).json({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'GEMINI_API_KEY가 서버 .env 파일에 설정되지 않았습니다.',
+      });
+    }
+
+    const { question, context, history } = req.body || {};
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'question이 필요합니다.' });
+    }
+    if (question.length > 500) {
+      return res.status(413).json({ error: 'TOO_LARGE' });
+    }
+
+    const ctx = context && typeof context === 'object' ? context : {};
+    const ctxLines = [
+      ctx.mof     ? `MOF 이름: ${ctx.mof}`      : '',
+      ctx.formula ? `화학식: ${ctx.formula}`     : '',
+      ctx.metal   ? `금속 노드: ${ctx.metal}`    : '',
+      ctx.ligand  ? `유기 리간드: ${ctx.ligand}` : '',
+    ].filter(Boolean).join('\n');
+
+    const systemPrompt = `당신은 고등학생의 MOF(금속-유기 골격체) 조사 보고서 작성을 돕는 화학 튜터입니다.
+
+규칙:
+- MOF, 화학, 재료과학과 직접 관련된 질문에만 답하세요.
+- 관련 없는 질문(다른 과목 숙제, 잡담 등)에는 "이 챗봇은 MOF 조사 보고서 관련 질문만 도와줄 수 있어요"라고 정중히 안내하고 답하지 마세요.
+- 보고서 문장을 대신 써주지 마세요. 개념을 설명하고 방향을 제시하는 역할만 하세요.
+- 고등학생이 이해할 수 있는 쉬운 한국어로, 3~5문장 이내로 간결하게 답하세요.
+- 실제 존재하지 않는 논문·자료를 지어내지 마세요. 확실하지 않으면 모른다고 답하세요.
+${ctxLines ? `\n현재 학생이 조사 중인 MOF 정보:\n${ctxLines}` : ''}`;
+
+    const histArr = Array.isArray(history) ? history.slice(-8) : [];
+    const contents = [
+      { role: 'user',  parts: [{ text: systemPrompt }] },
+      { role: 'model', parts: [{ text: '알겠습니다. MOF 관련 질문에만 쉽고 간결하게 답할게요.' }] },
+      ...histArr.map(h => ({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: String(h.text || '').slice(0, 1000) }],
+      })),
+      { role: 'user', parts: [{ text: question.trim().slice(0, 500) }] },
+    ];
+
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'x-goog-api-key': KEY,
+        },
+        body: JSON.stringify({
+          contents,
+          tools: [{ google_search: {} }],
+          generationConfig: {
+            temperature:     0.4,
+            maxOutputTokens: 700,
+          },
+        }),
+      },
+    );
+
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('Gemini API error:', data);
+      return res.status(r.status).json({ error: 'UPSTREAM', detail: data });
+    }
+
+    const cand = (data.candidates || [])[0];
+    if (!cand || cand.finishReason === 'SAFETY' || cand.finishReason === 'RECITATION') {
+      return res.status(502).json({
+        error: 'BLOCKED',
+        message: '응답이 안전 필터에 의해 차단되었습니다.',
+      });
+    }
+    const text = (cand.content?.parts || []).map(p => p.text || '').join('').trim();
+    if (!text) return res.status(502).json({ error: 'EMPTY_RESPONSE' });
+
+    // 검색 연동으로 인용된 출처 (있으면) 프런트에서 칩으로 보여줄 수 있도록 정리
+    const chunks = cand.groundingMetadata?.groundingChunks || [];
+    const sources = chunks
+      .map(c => (c.web ? { title: c.web.title || c.web.uri, uri: c.web.uri } : null))
+      .filter(Boolean)
+      .filter((s, i, arr) => arr.findIndex(x => x.uri === s.uri) === i)
+      .slice(0, 5);
+
+    res.json({ answer: text, sources });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'SERVER_ERROR', message: String(e?.message || e) });
+  }
+});
+
 /* ---------- Reports ---------- */
 app.post('/api/reports', (req, res) => {
   try {

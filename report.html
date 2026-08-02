@@ -394,6 +394,155 @@
     padding-top: 1rem;
     border-top: 1px solid #e2e8f0;
   }
+  /* ---------- MOF 질문 챗봇 ---------- */
+  .chat-fab {
+    position: fixed;
+    right: 18px; bottom: 18px;
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#1e40af,#3b82f6);
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    box-shadow: 0 8px 24px rgba(30,64,175,0.45);
+    cursor: pointer;
+    z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s ease;
+  }
+  .chat-fab:hover { transform: scale(1.06); }
+
+  .chat-panel {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    height: min(70vh, 640px);
+    background: var(--nb1);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.35);
+    z-index: 310;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+  }
+  .chat-panel.open { transform: translateY(0); }
+
+  .chat-panel-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 1rem 1.1rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .chat-panel-title { font-family:'Orbitron',sans-serif; font-size:0.98rem; color: var(--bpal); }
+  .chat-panel-sub { font-size: 0.78rem; color: var(--txm); margin-top: 0.2rem; }
+  .chat-close {
+    background: none; border: none; color: var(--txm);
+    font-size: 1.1rem; cursor: pointer; padding: 0.2rem 0.4rem;
+  }
+  .chat-close:hover { color: var(--tx); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.1rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+  .chat-empty-lead { color: var(--txm); font-size: 0.86rem; margin-bottom: 0.75rem; }
+  .chat-suggest { display: flex; flex-direction: column; gap: 0.5rem; }
+  .chat-suggest-btn {
+    text-align: left;
+    background: rgba(37,99,235,0.10);
+    border: 1px solid var(--border);
+    color: var(--bl2);
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .chat-suggest-btn:hover { background: rgba(37,99,235,0.18); }
+
+  .chat-msg {
+    max-width: 84%;
+    padding: 0.6rem 0.85rem;
+    border-radius: 14px;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .chat-msg.user  { align-self: flex-end; background: rgba(37,99,235,0.28); color: var(--tx); border-bottom-right-radius: 4px; }
+  .chat-msg.ai    { align-self: flex-start; background: var(--card); border: 1px solid var(--border); color: var(--tx); border-bottom-left-radius: 4px; }
+  .chat-msg.error { align-self: flex-start; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fca5a5; }
+
+  .chat-sources { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chat-source-chip {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: rgba(6,182,212,0.12);
+    border: 1px solid rgba(6,182,212,0.35);
+    color: var(--ac);
+    font-size: 0.72rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 100px;
+    text-decoration: none;
+    max-width: 220px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chat-source-chip:hover { background: rgba(6,182,212,0.22); }
+
+  .chat-typing { display: flex; gap: 4px; padding: 0.2rem 0; }
+  .chat-typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--txm);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  .chat-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+  .chat-input-row {
+    display: flex; gap: 0.5rem;
+    padding: 0.75rem 1.1rem;
+    border-top: 1px solid var(--border);
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.88rem;
+    font-family: inherit;
+  }
+  .chat-input:focus { outline: none; border-color: var(--bl2); }
+  .chat-send {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(37,99,235,0.25);
+    border: 1px solid rgba(59,130,246,0.5);
+    color: var(--bpal);
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .chat-send:hover { background: rgba(37,99,235,0.4); }
+  .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .chat-note {
+    font-size: 0.7rem;
+    color: var(--txd);
+    text-align: center;
+    padding: 0 1.1rem 0.85rem;
+  }
+
+  @media print {
+    .chat-fab, .chat-panel { display: none !important; }
+  }
+  @media (max-width: 480px) {
+    .chat-panel { max-width: 100%; height: 78vh; border-radius: 16px 16px 0 0; }
+  }
 </style>
 </head>
 <body>
@@ -628,6 +777,36 @@
 
   </div>
 </main>
+
+<!-- ====== MOF 질문 챗봇 ====== -->
+<button id="chatFab" class="chat-fab" aria-label="MOF 질문 챗봇 열기" aria-expanded="false">💬</button>
+
+<div id="chatPanel" class="chat-panel" aria-hidden="true">
+  <div class="chat-panel-head">
+    <div>
+      <div class="chat-panel-title">💬 MOF 질문하기</div>
+      <div class="chat-panel-sub">보고서 관련 궁금한 점을 물어보세요</div>
+    </div>
+    <button id="chatClose" class="chat-close" aria-label="닫기">✕</button>
+  </div>
+
+  <div id="chatMessages" class="chat-messages">
+    <div class="chat-empty" id="chatEmpty">
+      <p class="chat-empty-lead">이 MOF에 대해 궁금한 걸 물어보세요.</p>
+      <div class="chat-suggest">
+        <button class="chat-suggest-btn" data-q="이 MOF의 기공 크기가 왜 이렇게 정해졌어?">기공 크기가 왜 이렇게 정해졌어?</button>
+        <button class="chat-suggest-btn" data-q="이 MOF와 관련된 최신 연구가 있어?">관련된 최신 연구가 있어?</button>
+        <button class="chat-suggest-btn" data-q="이 리간드는 왜 이런 구조야?">이 리간드는 왜 이런 구조야?</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" class="chat-input" placeholder="궁금한 점을 입력하세요" maxlength="300">
+    <button id="chatSend" class="chat-send" aria-label="보내기">➤</button>
+  </div>
+  <div class="chat-note">MOF·화학 관련 질문만 답할 수 있어요. 보고서 문장은 직접 작성해야 해요.</div>
+</div>
 
 <script src="js/nav.js"></script>
 <!-- 임시: api.mof-explorer.com 서브도메인 설정 전에는 본인 Vercel URL을 직접 지정 -->
