@@ -445,7 +445,7 @@
       const baseLatticeCart = baseCart.map(v => v.clone());
       const cellPores = findPores(baseLatticeCart, L, { gridN: 8, minR: 2.8, maxOut: 8 });
 
-      const pores = [];
+      let pores = [];
       const N = cfg.supercell;
       for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
@@ -461,6 +461,15 @@
             });
           }
         }
+      }
+
+      // 슈퍼셀(여러 단위 셀 반복)일 때, 구조 가장자리 쪽 기공은 화면이
+      // 너무 복잡해 보이는 원인이 되므로 숨기고 안쪽의 완전한 기공만 표시한다.
+      if (N > 1) {
+        let maxExtent = 0;
+        cart.forEach(v => { const d = v.length(); if (d > maxExtent) maxExtent = d; });
+        const EDGE_KEEP_RATIO = 0.78; // 바깥쪽 ~22%에 있는 기공은 숨김
+        pores = pores.filter(po => po.position.length() <= maxExtent * EDGE_KEEP_RATIO);
       }
 
       /* ----- Pore rendering -----
@@ -510,6 +519,7 @@
         };
         m.visible = cfg.showPores;
         po.mesh = m;
+        po.bucket = col.bucket;
         po.cageType = cageType;
         po.found = !cfg.hiddenPores;
         poreGroup.add(m);
@@ -628,6 +638,18 @@
     function setCageTypeVisibility(type, v) {
       poreGroup.children.forEach(m => {
         if (m.userData && m.userData.cageType === type) m.visible = !!v;
+      });
+    }
+    /**
+     * Toggle visibility of all pores in one size bucket (0=소형 ... 4=특대형).
+     * Used by structure.html's clickable pore-size legend to reduce visual
+     * clutter when many pores are shown at once.
+     */
+    function setBucketVisibility(bucket, v) {
+      currentPores.forEach(p => {
+        if (p.bucket !== bucket) return;
+        if (p.mesh)       p.mesh.visible       = !!v && cfg.showPores;
+        if (p.ringSprite) p.ringSprite.visible = !!v && cfg.showPores;
       });
     }
 
@@ -838,7 +860,7 @@
     return {
       loadFromText, loadFromURL, loadFromKey,
       setSupercell, setPoreVisibility, setBondVisibility, setAtomVisibility,
-      setCageTypeVisibility,
+      setCageTypeVisibility, setBucketVisibility,
       revealPore,
       resetCamera, setAutoRotate,
       pores, mofKey,

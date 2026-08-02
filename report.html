@@ -395,9 +395,9 @@
     border-top: 1px solid #e2e8f0;
   }
   /* ---------- MOF 질문 챗봇 ---------- */
- .chat-fab {
+  .chat-fab {
     position: fixed;
-    right: 18px; bottom: 84px;
+    right: 18px; bottom: 18px;
     width: 54px; height: 54px;
     border-radius: 50%;
     background: linear-gradient(135deg,#1e40af,#3b82f6);
@@ -543,6 +543,68 @@
   @media (max-width: 480px) {
     .chat-panel { max-width: 100%; height: 78vh; border-radius: 16px 16px 0 0; }
   }
+
+  /* ---------- 챗봇 안내 마스코트 말풍선 ---------- */
+  .chat-hint {
+    position: fixed;
+    right: 12px;
+    bottom: 148px;
+    z-index: 305;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.45rem;
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .chat-hint.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .chat-hint-face {
+    width: 36px; height: 36px;
+    flex-shrink: 0;
+    animation: chatHintBob 2.2s ease-in-out infinite;
+    filter: drop-shadow(0 4px 10px rgba(251,146,60,0.4));
+  }
+  @keyframes chatHintBob {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-4px) rotate(3deg); }
+  }
+  .chat-hint-bubble {
+    position: relative;
+    max-width: 190px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.6rem 1.5rem 0.6rem 0.8rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  .chat-hint-bubble p {
+    font-size: 0.78rem;
+    color: var(--tx);
+    line-height: 1.42;
+  }
+  .chat-hint-bubble::after {
+    content: '';
+    position: absolute;
+    right: 14px; bottom: -7px;
+    width: 12px; height: 12px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    transform: rotate(45deg);
+  }
+  .chat-hint-close {
+    position: absolute;
+    top: 3px; right: 6px;
+    background: none; border: none;
+    color: var(--txm);
+    font-size: 0.68rem;
+    cursor: pointer;
+    padding: 3px;
+    line-height: 1;
+  }
+  .chat-hint-close:hover { color: var(--tx); }
+  @media print { .chat-hint { display: none !important; } }
 </style>
 </head>
 <body>
@@ -779,6 +841,19 @@
 </main>
 
 <!-- ====== MOF 질문 챗봇 ====== -->
+<div id="chatHint" class="chat-hint" role="status">
+  <svg class="chat-hint-face" viewBox="0 0 60 60" aria-hidden="true">
+    <circle cx="30" cy="30" r="26" fill="#fb923c" stroke="rgba(251,146,60,0.55)" stroke-width="3"/>
+    <circle cx="21" cy="27" r="3.2" fill="#04091a"/>
+    <circle cx="39" cy="27" r="3.2" fill="#04091a"/>
+    <path d="M18 37 Q30 46 42 37" stroke="#04091a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div class="chat-hint-bubble">
+    <button id="chatHintClose" class="chat-hint-close" aria-label="닫기">✕</button>
+    <p>보고서 관련 궁금한 점을 물어보세요!</p>
+  </div>
+</div>
+
 <button id="chatFab" class="chat-fab" aria-label="MOF 질문 챗봇 열기" aria-expanded="false">💬</button>
 
 <div id="chatPanel" class="chat-panel" aria-hidden="true">

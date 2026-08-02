@@ -670,6 +670,24 @@ MOF 이름: ${selMOF ? MOF_DATA[selMOF].name : '미선택'}
     let history = []; // [{role:'user'|'assistant', text}]
     let sending = false;
 
+    /* ---- 첫 방문 안내 말풍선 (세션당 1회) ---- */
+    const hint      = document.getElementById('chatHint');
+    const hintClose = document.getElementById('chatHintClose');
+    const HINT_KEY  = 'mof_chat_hint_seen';
+    function dismissHint() {
+      if (hint) hint.classList.remove('show');
+      try { sessionStorage.setItem(HINT_KEY, '1'); } catch (_) {}
+    }
+    if (hint) {
+      let alreadySeen = false;
+      try { alreadySeen = !!sessionStorage.getItem(HINT_KEY); } catch (_) {}
+      if (!alreadySeen) {
+        setTimeout(() => hint.classList.add('show'), 1600);
+        setTimeout(dismissHint, 10000);
+      }
+      if (hintClose) hintClose.addEventListener('click', dismissHint);
+    }
+
     function openPanel() {
       panel.classList.add('open');
       panel.setAttribute('aria-hidden', 'false');
@@ -683,6 +701,7 @@ MOF 이름: ${selMOF ? MOF_DATA[selMOF].name : '미선택'}
     }
     fab.addEventListener('click', () => {
       panel.classList.contains('open') ? closePanel() : openPanel();
+      dismissHint();
     });
     closeBt.addEventListener('click', closePanel);
 

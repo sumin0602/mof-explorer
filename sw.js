@@ -4,7 +4,7 @@
      version by hand. Falls back to cache when offline.
    - Network-only for the AI feedback API (needs live Gemini calls). */
 
-const CACHE_NAME = 'mof-explorer-v4';
+const CACHE_NAME = 'mof-explorer-v5';
 const OFFLINE_ASSETS = [
   './',
   './index.html',

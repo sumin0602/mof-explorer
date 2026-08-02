@@ -301,7 +301,28 @@
     gap: 0.35rem;
     font-size: 0.74rem;
     color: var(--txm);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 100px;
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
   }
+  .pore-legend .pl-item:hover { border-color: var(--border); background: rgba(255,255,255,0.05); }
+  .pore-legend .pl-item.off   { opacity: 0.35; }
+  .pore-legend .pl-item.off .pl-dot { box-shadow: none; }
+  .pore-legend .pl-all {
+    font-size: 0.72rem;
+    color: var(--bl2);
+    background: rgba(37,99,235,0.10);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.2rem 0.65rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .pore-legend .pl-all:hover { background: rgba(37,99,235,0.18); }
   .pore-legend .pl-dot {
     width: 12px; height: 12px;
     border-radius: 50%;
