@@ -3,11 +3,20 @@
    ============================================ */
 
 (function () {
+  // Safe translator: uses I18N when present, else falls back to the
+  // Korean string passed in. So nav.js still works if i18n.js is absent.
+  function T(key, fallback) {
+    return (window.I18N && typeof I18N.t === 'function') ? I18N.t(key) : fallback;
+  }
+  function i18nApply() {
+    if (window.I18N && typeof I18N.apply === 'function') I18N.apply();
+  }
+
   const PAGES = [
-    { href: 'index.html',     label: '홈' },
-    { href: 'structure.html', label: '구조 특징' },
-    { href: 'game.html',      label: '기공 게임' },
-    { href: 'report.html',    label: '보고서' },
+    { href: 'index.html',     key: 'nav.home',      label: '홈' },
+    { href: 'structure.html', key: 'nav.structure', label: '구조 특징' },
+    { href: 'game.html',      key: 'nav.game',      label: '기공 게임' },
+    { href: 'report.html',    key: 'nav.report',    label: '보고서' },
   ];
 
   /* ----- Theme (apply BEFORE render to avoid flash) ----- */
@@ -36,8 +45,11 @@
     const btn = document.getElementById('themeToggle');
     if (!btn) return;
     btn.textContent = currentTheme() === 'light' ? '🌙' : '☀';
-    btn.setAttribute('aria-label', currentTheme() === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환');
-    btn.title = btn.getAttribute('aria-label');
+    const lbl = currentTheme() === 'light'
+      ? T('theme.toDark', '다크 모드로 전환')
+      : T('theme.toLight', '라이트 모드로 전환');
+    btn.setAttribute('aria-label', lbl);
+    btn.title = lbl;
   }
   // expose for other modules
   window.MOFTheme = { current: currentTheme, toggle: toggleTheme, apply: applyTheme };
@@ -57,12 +69,15 @@
     const here = currentPage();
     const nav = document.createElement('nav');
     nav.className = 'nav';
+    // NOTE: the "MOF Explorer" logo is the product name — it stays as-is
+    // (singular) in both languages and gets no data-i18n.
     nav.innerHTML = `
       <a href="index.html" class="logo">⬡ MOF Explorer</a>
       <div class="nav-right">
         <ul id="navList">
-          ${PAGES.map(p => `<li><a href="${p.href}" class="${p.href === here ? 'active' : ''}">${p.label}</a></li>`).join('')}
+          ${PAGES.map(p => `<li><a href="${p.href}" class="${p.href === here ? 'active' : ''}" data-i18n="${p.key}">${p.label}</a></li>`).join('')}
         </ul>
+        <button class="lang-toggle" id="langToggle" aria-label="Language / 언어">EN</button>
         <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">☀</button>
         <button class="ham" aria-label="메뉴 열기">☰</button>
       </div>
@@ -76,14 +91,26 @@
     const btn = nav.querySelector('#themeToggle');
     btn.addEventListener('click', toggleTheme);
     refreshToggleIcon();
+
+    // language toggle — the nav is injected after i18n.js's initial pass,
+    // so nav.js owns the binding and triggers a re-translate itself.
+    const langBtn = nav.querySelector('#langToggle');
+    if (langBtn && window.I18N && typeof I18N.toggle === 'function') {
+      langBtn.addEventListener('click', () => I18N.toggle());
+    } else if (langBtn) {
+      langBtn.style.display = 'none';   // hide if i18n.js isn't loaded
+    }
+    // translate the freshly-built nav (also sets #langToggle's label)
+    i18nApply();
   }
 
   function renderFooter() {
     if (document.querySelector('.footer')) return;
     const f = document.createElement('footer');
     f.className = 'footer';
-    f.innerHTML = `© 2026 MOF Explorer · 고등학생을 위한 나노 과학 교육 플랫폼`;
+    f.innerHTML = `<span data-i18n="footer.text">© 2026 MOF Explorer · 고등학생을 위한 나노 과학 교육 플랫폼</span>`;
     document.body.appendChild(f);
+    i18nApply();
   }
 
   /* ----- Background particle canvas ----- */
@@ -203,8 +230,8 @@
       btn.href = PLAY_STORE_URL;
       btn.target = '_blank';
       btn.rel = 'noopener';
-      btn.setAttribute('aria-label', 'Google Play에서 앱으로 설치');
-      btn.innerHTML = '📲 앱으로 설치';
+      btn.setAttribute('aria-label', T('pwa.installStore', 'Google Play에서 앱으로 설치'));
+      btn.innerHTML = T('pwa.install', '📲 앱으로 설치');
       Object.assign(btn.style, {
         position: 'fixed', bottom: '18px', right: '18px', zIndex: 200,
         background: 'linear-gradient(135deg,#1e40af,#3b82f6)',
@@ -220,8 +247,8 @@
       if (document.getElementById('pwaInstallBtn')) return;
       const btn = document.createElement('button');
       btn.id = 'pwaInstallBtn';
-      btn.setAttribute('aria-label', '앱으로 설치');
-      btn.innerHTML = '📲 앱으로 설치';
+      btn.setAttribute('aria-label', T('pwa.install', '📲 앱으로 설치'));
+      btn.innerHTML = T('pwa.install', '📲 앱으로 설치');
       Object.assign(btn.style, {
         position: 'fixed', bottom: '18px', right: '18px', zIndex: 200,
         background: 'linear-gradient(135deg,#1e40af,#3b82f6)',
@@ -244,6 +271,10 @@
       if (b) b.remove();
     }
   }
+
+  // when the language changes, refresh bits that are set imperatively
+  // (the theme button's emoji stays, but its aria-label is localized)
+  document.addEventListener('i18n:changed', refreshToggleIcon);
 
   document.addEventListener('DOMContentLoaded', () => {
     renderNav();

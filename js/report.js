@@ -40,6 +40,27 @@
       year: 2008, pore: '6 / 8', sa: '~1,200',
       apps: ['환경 정화', '촉매 반응', '에너지 저장'],
     },
+    zif67: {
+      name: 'ZIF-67', formula: 'Co(mIm)₂',
+      metal: '코발트 (Co²⁺)',
+      ligand: 'mIm (2-메틸이미다졸)',
+      year: 2009, pore: '3.4', sa: '~1,700',
+      apps: ['촉매 반응', '전극 소재', '가스 분리'],
+    },
+    mgmof74: {
+      name: 'Mg-MOF-74', formula: 'Mg₂(dobdc)',
+      metal: '마그네슘 (Mg²⁺)',
+      ligand: 'DOBDC (다이하이드록시테레프탈산)',
+      year: 2008, pore: '~11', sa: '~1,500',
+      apps: ['CO₂ 포집', '가스 저장', '가스 분리'],
+    },
+    mil53: {
+      name: 'MIL-53(Al)', formula: 'Al(OH)(BDC)',
+      metal: '알루미늄 (Al³⁺)',
+      ligand: 'BDC (테레프탈산)',
+      year: 2002, pore: '~8.5', sa: '~1,100',
+      apps: ['가스 분리', 'CO₂ 포집', '센서'],
+    },
   };
 
   const STEP_TOTAL = 5;

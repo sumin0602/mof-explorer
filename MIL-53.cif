@@ -1,0 +1,102 @@
+#------------------------------------------------------------------------------
+#$Date: 2016-02-16 22:30:59 +0200 (Tue, 16 Feb 2016) $
+#$Revision: 176467 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/4/10/85/4108533.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/
+#
+# All data on this site have been placed in the public domain by the
+# contributors.
+#
+data_4108533
+loop_
+_publ_author_name
+'Luc Alaerts'
+'Michael Maes'
+'Lars Giebeler'
+'Pierre A. Jacobs'
+'Johan A. Martens'
+'Joeri F. M. Denayer'
+'Christine E. A. Kirschhock'
+'Dirk E. De Vos'
+_publ_contact_author_email       christine.kirschhock@biw.kuleuven.be
+_publ_contact_author_name        Kirschhock,C.E.A.
+_publ_section_title
+;
+ Selective Adsorption and Separation of ortho-Substituted Alkylaromatics
+ with the Microporous Aluminum Terephthalate MIL-53
+;
+_journal_name_full               'Journal of the American Chemical Society'
+_journal_page_first              14170
+_journal_page_last               14178
+_journal_paper_doi               10.1021/ja802761z
+_journal_volume                  130
+_journal_year                    2008
+_chemical_formula_sum            'C8 H5 Al O5'
+_chemical_name_common            'MIL-53 ortho-xylene'
+_space_group_IT_number           74
+_symmetry_cell_setting           orthorhombic
+_symmetry_space_group_name_Hall  '-I 2b 2'
+_symmetry_space_group_name_H-M   'I m m a'
+_cell_angle_alpha                90.0
+_cell_angle_beta                 90.0
+_cell_angle_gamma                90.0
+_cell_formula_units_Z            4
+_cell_length_a                   6.63098(22)
+_cell_length_b                   15.9473(7)
+_cell_length_c                   13.9205(6)
+_cell_volume                     1472.04(10)
+_computing_structure_refinement  GSAS
+_pd_phase_name                   MIL-53
+_refine_ls_goodness_of_fit_all   4.55
+_refine_ls_matrix_type           full
+_refine_ls_number_parameters     30
+_refine_ls_number_restraints     0
+_refine_ls_shift/su_max          7.44
+_refine_ls_shift/su_mean         1.31
+_cod_data_source_file            ja802761z_si_003.cif
+_cod_data_source_block           MIL53OX
+_cod_original_cell_volume        1472.03(9)
+_cod_original_formula_sum        'Al C8 H5 O5'
+_cod_database_code               4108533
+loop_
+_symmetry_equiv_pos_site_id
+_symmetry_equiv_pos_as_xyz
+1 +x,+y,+z
+2 -x,+y,+z
+3 +x,-y+1/2,+z
+4 -x,-y+1/2,+z
+-1 -x,-y,-z
+-2 +x,-y,-z
+-3 -x,+y+1/2,-z
+-4 +x,+y+1/2,-z
+101 +x+1/2,+y+1/2,+z+1/2
+102 -x+1/2,+y+1/2,+z+1/2
+103 +x+1/2,-y,+z+1/2
+104 -x+1/2,-y,+z+1/2
+-101 -x+1/2,-y+1/2,-z+1/2
+-102 +x+1/2,-y+1/2,-z+1/2
+-103 -x+1/2,+y,-z+1/2
+-104 +x+1/2,+y,-z+1/2
+loop_
+_atom_site_type_symbol
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_thermal_displace_type
+_atom_site_U_iso_or_equiv
+_atom_site_symmetry_multiplicity
+Al Al 0.25 0.25 0.75 1.0 Uiso 0.01191 4
+O O(1) 0.0 0.25 0.6888(4) 1.0 Uiso 0.01235 4
+C c11 -0.02369(13) 0.2541(4) 0.32261(19) 0.215(13) Uiso 0.160(4) 16
+C c12 -0.2701(6) 0.34577(13) 0.3878(4) 0.215(13) Uiso 0.160(4) 16
+C c21 -0.1211(7) 0.32987(27) 0.32214(19) 0.215(13) Uiso 0.160(4) 16
+C c22 -0.0754(6) 0.19423(13) 0.3888(4) 0.215(13) Uiso 0.160(4) 16
+C c31 -0.32179(13) 0.2859(4) 0.45396(19) 0.215(13) Uiso 0.160(4) 16
+C c32 -0.2244(7) 0.21012(27) 0.45443(19) 0.215(13) Uiso 0.160(4) 16
+C cm1 -0.48498(28) 0.3033(8) 0.5259(4) 0.215(13) Uiso 0.160(4) 16
+C cm2 -0.2810(15) 0.1446(6) 0.5269(4) 0.215(13) Uiso 0.160(4) 16

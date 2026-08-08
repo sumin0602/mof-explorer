@@ -29,16 +29,23 @@
     Zn: { color: 0xa1a1aa, radius: 0.78, label: '아연 (Zn)' },
     Zr: { color: 0x22d3ee, radius: 0.88, label: '지르코늄 (Zr)' },
     Cr: { color: 0xc084fc, radius: 0.78, label: '크롬 (Cr)' },
+    Co: { color: 0x4f6ef7, radius: 0.79, label: '코발트 (Co)' },
+    Mg: { color: 0x86efac, radius: 0.86, label: '마그네슘 (Mg)' },
+    Al: { color: 0xd8b4a0, radius: 0.68, label: '알루미늄 (Al)' },
     O:  { color: 0xef4444, radius: 0.40, label: '산소 (O)' },
     C:  { color: 0x64748b, radius: 0.34, label: '탄소 (C)' },
     H:  { color: 0xe2e8f0, radius: 0.20, label: '수소 (H)' },
     N:  { color: 0x60a5fa, radius: 0.36, label: '질소 (N)' },
+    F:  { color: 0x5eead4, radius: 0.32, label: '플루오린 (F)' },
   };
-  const METALS = ['Cu', 'Zn', 'Zr', 'Cr'];
+  const METALS = ['Cu', 'Zn', 'Zr', 'Cr', 'Co', 'Mg', 'Al'];
 
   /* ----- Bond distance cutoffs (Å) ----- */
   const BONDS = {
     'Cu-O': 2.6, 'Zn-O': 2.4, 'Zr-O': 2.6, 'Cr-O': 2.4,
+    'Co-O': 2.4, 'Mg-O': 2.5, 'Al-O': 2.4, 'Cr-F': 2.4,
+    // ZIF frameworks are metal–imidazolate: the node bonds to N, not O.
+    'Zn-N': 2.3, 'Co-N': 2.3,
     'C-O':  1.7, 'C-C':  1.8, 'C-H':  1.3, 'C-N':  1.6,
     'O-H':  1.2, 'N-H':  1.2,
   };
@@ -107,13 +114,116 @@
       blurb: '지르코늄 6개로 이뤄진 매우 안정한 클러스터. 팔면체+사면체 이중 cage.',
       hint: '사이언 노드 (지르코늄), 2가지 cage',
     },
+    zif8: {
+      id: 'zif8', name: 'ZIF-8', formula: 'Zn(mIm)₂',
+      cif: 'ZIF-8.cif', metal: 'Zn', metalLabel: '아연 (Zn²⁺)',
+      ligand: '2-메틸이미다졸', sa: '~1,600 m²/g',
+      pores: '11.6 Å cage / 3.4 Å 창',
+      blurb: '아연과 2-메틸이미다졸이 만드는 소달라이트(SOD) 구조. 금속이 질소와 결합.',
+      hint: '은회색 노드 (아연), 좁은 창의 큰 cage',
+    },
+    zif67: {
+      id: 'zif67', name: 'ZIF-67', formula: 'Co(mIm)₂',
+      cif: 'ZIF-67.cif', metal: 'Co', metalLabel: '코발트 (Co²⁺)',
+      ligand: '2-메틸이미다졸', sa: '~1,700 m²/g',
+      pores: '11.6 Å cage / 3.4 Å 창',
+      blurb: 'ZIF-8과 같은 소달라이트 구조의 코발트 버전. 금속만 Zn→Co로 바뀐 등구조체.',
+      hint: '남색 노드 (코발트), ZIF-8과 동일한 골격',
+    },
+    mil53: {
+      id: 'mil53', name: 'MIL-53(Al)', formula: 'Al(OH)(BDC)',
+      cif: 'MIL-53.cif', metal: 'Al', metalLabel: '알루미늄 (Al³⁺)',
+      ligand: 'BDC', sa: '~1,100 m²/g',
+      pores: '~8.5 Å 1차원 마름모 채널',
+      blurb: 'AlO₆ 팔면체가 사슬로 이어지고 테레프탈산이 다리를 놓는 1차원 채널 구조. 호흡(breathing)으로 유명.',
+      hint: '탄(tan)색 노드 (알루미늄), 다이아몬드형 1D 채널',
+    },
+    mgmof74: {
+      id: 'mgmof74', name: 'Mg-MOF-74', formula: 'Mg₂(dobdc)',
+      cif: 'Mg-MOF-74.cif', metal: 'Mg', metalLabel: '마그네슘 (Mg²⁺)',
+      ligand: 'DOBDC', sa: '~1,500 m²/g',
+      pores: '~11 Å 육각 허니컴 채널',
+      blurb: '마그네슘과 다이하이드록시테레프탈산이 만드는 벌집형 채널. 열린 금속 자리로 CO₂를 잘 붙잡음.',
+      hint: '연두색 노드 (마그네슘), 육각 허니컴 채널',
+    },
+    mil101: {
+      id: 'mil101', name: 'MIL-101(Cr)', formula: 'Cr₃O(F)(BDC)₃',
+      cif: 'MIL-101.cif', metal: 'Cr', metalLabel: '크롬 (Cr³⁺)',
+      ligand: 'BDC', sa: '~3,900 m²/g',
+      pores: '29 / 34 Å 거대 메조기공',
+      blurb: '크롬 삼합체와 테레프탈산이 만드는 초거대 메조기공 MOF. 실제 셀이 매우 커서 대표 조각만 표시.',
+      hint: '보라색 노드 (크롬), 초대형 cage (조각 표시)',
+      fragment: true,
+    },
   };
 
   /* ============================================================
      CIF parser
      ============================================================ */
+  /* ----- symmetry-operation helpers -----
+     Many CIFs from the Crystallography Open Database list only the
+     asymmetric unit plus a set of symmetry operations (e.g. MIL-53 is
+     space group Imma with 16 ops). The parser applies those ops so the
+     full unit cell is rendered. A plain P1 file (one 'x,y,z' op) takes
+     the no-op fast path unchanged. */
+  function _frac(s) {
+    s = s.trim();
+    if (s.includes('/')) { const [a, b] = s.split('/'); return parseFloat(a) / parseFloat(b); }
+    return parseFloat(s) || 0;
+  }
+  // Compile one axis expression like "-x+1/2" → [cx, cy, cz, const].
+  function _compileAxis(expr) {
+    let cx = 0, cy = 0, cz = 0, con = 0;
+    const terms = expr.replace(/\s+/g, '').match(/[+-]?[^+-]+/g) || [];
+    for (const raw of terms) {
+      let t = raw, sign = 1;
+      if (t[0] === '+') t = t.slice(1);
+      else if (t[0] === '-') { sign = -1; t = t.slice(1); }
+      if (/x/i.test(t))      cx += sign * (t.replace(/[x*]/gi, '') === '' ? 1 : _frac(t.replace(/[x*]/gi, '')));
+      else if (/y/i.test(t)) cy += sign * (t.replace(/[y*]/gi, '') === '' ? 1 : _frac(t.replace(/[y*]/gi, '')));
+      else if (/z/i.test(t)) cz += sign * (t.replace(/[z*]/gi, '') === '' ? 1 : _frac(t.replace(/[z*]/gi, '')));
+      else                   con += sign * _frac(t);
+    }
+    return [cx, cy, cz, con];
+  }
+  function _compileOp(op) {
+    const parts = op.split(',');
+    if (parts.length !== 3) return null;
+    return parts.map(_compileAxis);
+  }
+  function _applyOp(cop, fx, fy, fz) {
+    const wrap = v => { v %= 1; return v < 0 ? v + 1 : v; };
+    return [
+      wrap(cop[0][0] * fx + cop[0][1] * fy + cop[0][2] * fz + cop[0][3]),
+      wrap(cop[1][0] * fx + cop[1][1] * fy + cop[1][2] * fz + cop[1][3]),
+      wrap(cop[2][0] * fx + cop[2][1] * fy + cop[2][2] * fz + cop[2][3]),
+    ];
+  }
+  function _expandSymmetry(atoms, ops) {
+    if (ops.length <= 1) return atoms;            // P1 fast path
+    const cops = ops.map(_compileOp).filter(Boolean);
+    const out = [];
+    const kept = [];                               // {e, x, y, z} for dedup
+    const TOL = 0.015;
+    const near = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 1 - d) < TOL; };
+    for (const a of atoms) {
+      for (const cop of cops) {
+        const [x, y, z] = _applyOp(cop, a.fx, a.fy, a.fz);
+        let dup = false;
+        for (const k of kept) {
+          if (k.e === a.element && near(k.x, x) && near(k.y, y) && near(k.z, z)) { dup = true; break; }
+        }
+        if (dup) continue;
+        kept.push({ e: a.element, x, y, z });
+        out.push({ label: a.label, fx: x, fy: y, fz: z, element: a.element });
+      }
+    }
+    return out;
+  }
+
   function parseCIF(text) {
     const out = { cell: {}, atoms: [] };
+    const symops = [];
     const lines = text.split(/\r?\n/);
     let i = 0;
     while (i < lines.length) {
@@ -121,15 +231,36 @@
       const m = line.match(/^_cell_(length|angle)_(\w+)\s+([\-\d.]+)/i);
       if (m) out.cell[`${m[1]}_${m[2].toLowerCase()}`] = parseFloat(m[3]);
 
+      // inline single op:  _symmetry_equiv_pos_as_xyz 'x,y,z'
+      const im = line.match(/^_(?:symmetry_equiv_pos_as_xyz|space_group_symop_operation_xyz)\s+['"]?([xyz][xyz0-9+\-/,. ]*)['"]?\s*$/i);
+      if (im && im[1].includes(',')) symops.push(im[1].replace(/['" ]/g, ''));
+
       if (line === 'loop_') {
         let j = i + 1;
         const cols = [];
         while (j < lines.length && lines[j].trim().startsWith('_')) {
-          cols.push(lines[j].trim()); j++;
+          cols.push(lines[j].trim().split(/\s+/)[0]); j++;
         }
-        if (cols.some(c => c.startsWith('_atom_site_'))) {
+        const lc = cols.map(c => c.toLowerCase());
+
+        // symmetry-operation loop
+        if (lc.some(c => c.includes('symmetry_equiv_pos_as_xyz') || c.includes('symop_operation_xyz'))) {
+          while (j < lines.length) {
+            const t = lines[j].trim();
+            if (!t || t.startsWith('_') || t.startsWith('loop_') || t.startsWith('data_')) break;
+            const clean = t.replace(/['"]/g, '');
+            const tok = (clean.match(/[xyz][xyz0-9+\-/,. ]*[xyz0-9]/gi) || [])
+              .map(s => s.replace(/\s+/g, '')).filter(s => s.split(',').length === 3);
+            if (tok.length) symops.push(tok[tok.length - 1]);
+            j++;
+          }
+          i = j; continue;
+        }
+
+        // atom-site loop
+        if (lc.some(c => c.startsWith('_atom_site_'))) {
           const col = {};
-          cols.forEach((c, idx) => {
+          lc.forEach((c, idx) => {
             if (c === '_atom_site_label')            col.label = idx;
             else if (c === '_atom_site_fract_x')     col.fx = idx;
             else if (c === '_atom_site_fract_y')     col.fy = idx;
@@ -140,7 +271,10 @@
             const t = lines[j].trim();
             if (!t || t.startsWith('_') || t.startsWith('loop_') || t.startsWith('data_')) break;
             const p = t.split(/\s+/);
-            const elem = (p[col.sym] || (p[col.label] || '').replace(/[\d]+$/, '')).trim();
+            let elem = (p[col.sym] || (p[col.label] || '').replace(/[\d]+$/, '')).trim();
+            // strip charge/isotope decorations (e.g. "O2-", "Cr3+") → element only
+            elem = elem.replace(/[^A-Za-z].*$/, '');
+            if (elem.length > 1) elem = elem[0].toUpperCase() + elem.slice(1).toLowerCase();
             const fx = parseFloat(p[col.fx]);
             const fy = parseFloat(p[col.fy]);
             const fz = parseFloat(p[col.fz]);
@@ -154,6 +288,9 @@
       }
       i++;
     }
+
+    // Expand the asymmetric unit by the collected symmetry operations.
+    if (symops.length > 1) out.atoms = _expandSymmetry(out.atoms, symops);
     return out;
   }
 
@@ -296,8 +433,8 @@
       supercell:    Math.max(1, Math.min(3, opts.supercell || 1)),
       hiddenPores:  !!opts.hiddenPores,        // for game: pores start invisible
       poreClickRadius: opts.poreClickRadius || 1.0, // tolerance for "empty space" picking
-      bondLimit:    opts.bondLimit || 4500,    // safety cap
-      atomLimit:    opts.atomLimit || 4500,
+      bondLimit:    opts.bondLimit || 8000,    // safety cap
+      atomLimit:    opts.atomLimit || 5000,
     };
 
     const handlers = {

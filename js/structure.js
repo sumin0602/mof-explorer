@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showBonds: true,
       autoRotate: true,
       onAtomClick: ({ element }) => {
-        if (['Cu','Zn','Zr','Cr'].includes(element)) showMetal(element);
-        else                                         showLigand(element);
+        if (['Cu','Zn','Zr','Cr','Co','Mg','Al'].includes(element)) showMetal(element);
+        else                                                        showLigand(element);
       },
       onPoreClick: ({ index, pore, cageType }) => {
         showPore(pore, cageType);
@@ -244,14 +244,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ---- info panel handlers ---- */
     function metalName(el) {
-      return ({ Cu: '구리', Zn: '아연', Zr: '지르코늄', Cr: '크롬' })[el] || el;
+      return ({ Cu: '구리', Zn: '아연', Zr: '지르코늄', Cr: '크롬', Co: '코발트', Mg: '마그네슘', Al: '알루미늄' })[el] || el;
     }
     function showMetal(el) {
       const desc = ({
         Cu: 'HKUST-1의 패들휠 클러스터 — 두 개의 Cu 이온이 4개의 카르복실기 산소와 결합. CO₂·H₂O 흡착자리(외부 빈자리)로 활용.',
-        Zn: 'MOF-5의 Zn₄O 사면체 클러스터 — 4개의 Zn 이온이 중심 산소를 둘러싸고 BDC 카르복실기와 결합. 결정의 모서리.',
+        Zn: 'MOF-5의 Zn₄O 사면체 클러스터 — 4개의 Zn 이온이 중심 산소를 둘러싸고 BDC 카르복실기와 결합. 결정의 모서리. (ZIF 계열에서는 Zn이 이미다졸의 질소와 결합)',
         Zr: 'UiO-66의 Zr₆O₄(OH)₄ 옥타헤드론 — 6개의 Zr 이온이 8개의 산소/하이드록시드와 결합한 매우 안정한 클러스터. 열·물·산 안정성 최강.',
         Cr: 'MIL 계열에서 사용되는 크롬 클러스터로 거대 cage를 형성.',
+        Co: 'ZIF-67의 코발트 노드 — 2-메틸이미다졸의 질소 4개와 사면체로 결합. ZIF-8(Zn)과 같은 소달라이트 골격의 코발트 버전.',
+        Mg: 'Mg-MOF-74의 마그네슘 노드 — 열린 금속 자리(open metal site)가 육각 채널 벽에 늘어서 CO₂를 강하게 붙잡음.',
+        Al: 'MIL-53(Al)의 알루미늄 노드 — AlO₆ 팔면체가 사슬로 이어지며 1차원 채널의 뼈대를 형성. 게스트에 따라 채널이 열리고 닫히는 호흡(breathing)으로 유명.',
       })[el] || '금속 노드는 격자의 모서리 역할을 합니다.';
       info.innerHTML = `
         <h4 style="color:#fb923c;">🟠 금속 노드 (${metalName(el)})</h4>
@@ -259,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <p>${desc}</p>
         <ul style="margin-top:0.75rem; padding-left:1.1rem; color:var(--txm); font-size:0.88rem; line-height:1.75;">
           <li><strong>역할</strong>: 격자의 모서리·관절 + 활성 자리</li>
-          <li><strong>색상(이 뷰어)</strong>: ${({Cu:'주황',Zn:'은회색',Zr:'시안',Cr:'보라'})[el] || '주황'}</li>
+          <li><strong>색상(이 뷰어)</strong>: ${({Cu:'주황',Zn:'은회색',Zr:'시안',Cr:'보라',Co:'남색',Mg:'연두',Al:'탄(베이지)'})[el] || '주황'}</li>
           <li><strong>결합</strong>: 카르복실기 O와 강한 배위결합</li>
         </ul>
       `;

@@ -338,7 +338,9 @@
   function startPore3D() {
     if (!require3D()) return;
 
-    const pool = ['hkust1', 'uio66'];   // skip MOF-5 (heavy for 2x2x2)
+    // 2×2×2 슈퍼셀로 도는 모드라 무거운 MOF는 제외:
+    // MOF-5(424원자)·MIL-101(조각 1504원자)은 슈퍼셀 시 과부하 → 빼둠.
+    const pool = ['hkust1', 'uio66', 'zif8', 'zif67', 'mgmof74', 'mil53'];
     const mofKey = pool[Math.floor(Math.random() * pool.length)];
     pore3d.mof = window.MOFViewer.REGISTRY[mofKey];
 
@@ -553,19 +555,23 @@
     det.answered = false;
     det.hintUsed = false;
 
-    const pool = ['hkust1', 'mof5', 'uio66'];
+    // 구조만 보고 MOF를 맞히는 모드. supercell 1이라 부담 적음.
+    // ZIF-67은 ZIF-8과 골격이 같아(노드 색만 다름) 라벨 없이 헷갈릴 수 있어 제외,
+    // MIL-101은 조각(fragment) 표시라 통구조 추측용으로 부적합해 제외.
+    const pool = ['hkust1', 'mof5', 'uio66', 'zif8', 'mgmof74', 'mil53'];
     const correctKey = pool[Math.floor(Math.random() * pool.length)];
     const correct = window.MOFViewer.REGISTRY[correctKey];
     det.correctMof = { id: correctKey, ...correct };
 
-    // choices: 3 from registry + 1 decoy (ZIF-8, no CIF in project)
-    const decoy = { id: 'zif8', name: 'ZIF-8', formula: 'Zn(mIm)₂' };
-    let choices = [
-      { id: 'hkust1', name: 'HKUST-1', formula: 'Cu₃(BTC)₂' },
-      { id: 'mof5',   name: 'MOF-5',   formula: 'Zn₄O(BDC)₃' },
-      { id: 'uio66',  name: 'UiO-66',  formula: 'Zr₆O₄(OH)₄(BDC)₆' },
-      decoy,
-    ];
+    // 4지선다: 정답 + 같은 pool에서 뽑은 서로 다른 오답 3개 (REGISTRY에서 이름/화학식)
+    const R = window.MOFViewer.REGISTRY;
+    const distractors = pool.filter(k => k !== correctKey);
+    for (let i = distractors.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [distractors[i], distractors[j]] = [distractors[j], distractors[i]];
+    }
+    const pickKeys = [correctKey, ...distractors.slice(0, 3)];
+    let choices = pickKeys.map(k => ({ id: k, name: R[k].name, formula: R[k].formula }));
     for (let i = choices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [choices[i], choices[j]] = [choices[j], choices[i]];
