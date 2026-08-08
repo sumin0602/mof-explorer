@@ -279,16 +279,12 @@
 
   /* ---------- Pills ---------- */
   document.querySelectorAll('#appsPills .pill').forEach(p => {
-    const cb = p.querySelector('input');
-    p.addEventListener('click', e => {
-      // prevent double-toggle when label fires
-      if (e.target !== cb) {
-        cb.checked = !cb.checked;
-      }
-      p.classList.toggle('on', cb.checked);
-      persist();
-    });
-  });
+   const cb = p.querySelector('input');
+   cb.addEventListener('change', () => {
+     p.classList.toggle('on', cb.checked);
+     persist();
+   });
+ });
 
   /* ---------- Character counters ---------- */
   function countersUpdate() {
