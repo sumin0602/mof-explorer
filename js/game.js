@@ -4,6 +4,10 @@
 
 (function () {
 
+  // Localize native dialog text (confirm/alert) via i18n; falls back to
+  // Korean if i18n.js isn't loaded.
+  const TT = (ko) => (window.I18N && I18N.tr) ? I18N.tr(ko) : ko;
+
   /* ---------- Sound effects (Web Audio API) ---------- */
   const SFX = (function () {
     const KEY = 'mof_sfx_muted';
@@ -176,7 +180,7 @@
   }
 
   document.getElementById('clearRank').addEventListener('click', () => {
-    if (confirm('랭킹을 모두 초기화하시겠습니까?')) {
+    if (confirm(TT('랭킹을 모두 초기화하시겠습니까?'))) {
       saveRank([]);
       renderRank();
     }
@@ -423,7 +427,7 @@
     });
 
     pore3d.viewer.loadFromKey(pore3d.mof.id).catch(err => {
-      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ ${pore3d.mof.name} 로드 실패<br><span style="font-size:0.82rem; opacity:0.7;">${String(err.message || err)}</span></div>`;
+      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ ${pore3d.mof.name} ${TT('로드 실패')}<br><span style="font-size:0.82rem; opacity:0.7;">${String(err.message || err)}</span></div>`;
     });
   }
 
@@ -514,7 +518,7 @@
   }
 
   document.getElementById('quit3dBtn').addEventListener('click', () => {
-    if (confirm('정말 게임을 종료하시겠습니까?')) endPore3D(false);
+    if (confirm(TT('정말 게임을 종료하시겠습니까?'))) endPore3D(false);
   });
   document.getElementById('mute3dBtn').addEventListener('click', () => {
     SFX.setMuted(!SFX.muted);
@@ -609,7 +613,7 @@
       onReady: () => { loading.style.display = 'none'; },
     });
     det.viewer.loadFromKey(correctKey).catch(err => {
-      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ 로드 실패<br><span style="font-size:0.82rem;">${String(err.message || err)}</span></div>`;
+      loading.innerHTML = `<div style="color:var(--err); padding:1rem; text-align:center;">⚠ ${TT('로드 실패')}<br><span style="font-size:0.82rem;">${String(err.message || err)}</span></div>`;
     });
   }
 
@@ -627,14 +631,14 @@
       det.score += pts;
       SFX.hit(2);
       document.getElementById('detFeedback').innerHTML =
-        `<span style="color:var(--ok); font-weight:600;">✓ 정답입니다! +${pts}점</span>` +
+        `<span style="color:var(--ok); font-weight:600;">${TT('✓ 정답입니다!')} +${pts}${TT('점')}</span>` +
         `<br><span class="muted" style="font-size:0.82rem;">${det.correctMof.blurb || ''}</span>`;
     } else {
       btn.classList.add('wrong');
       SFX.miss();
       all.forEach(b => { if (b.dataset.id === correctId) b.classList.add('correct'); });
       document.getElementById('detFeedback').innerHTML =
-        `<span style="color:var(--err); font-weight:600;">✗ 정답은 <strong>${det.correctMof.name}</strong>입니다.</span>` +
+        `<span style="color:var(--err); font-weight:600;">${TT('✗ 정답은')} <strong>${det.correctMof.name}</strong>${TT('입니다.')}</span>` +
         `<br><span class="muted" style="font-size:0.82rem;">${det.correctMof.blurb || ''}</span>`;
     }
     document.getElementById('hudDetScore').textContent = det.score;
@@ -650,7 +654,7 @@
     b.style.opacity = '0.5';
   });
   document.getElementById('quitDetBtn').addEventListener('click', () => {
-    if (!confirm('정말 게임을 종료하시겠습니까?')) return;
+    if (!confirm(TT('정말 게임을 종료하시겠습니까?'))) return;
     if (det.viewer) { try { det.viewer.dispose(); } catch (_) {} det.viewer = null; }
     state.score = det.score;
     showResult({ score: det.score, acc: 0, elapsed: 0, grade: 'C' });
@@ -784,7 +788,7 @@
       quiz.correct++;
       SFX.hit(2);
       document.getElementById('quizFeedback').innerHTML = `
-        <div class="qf-good">✓ 정답! +${pts}점${took <= state.cfg.fastBonusSec ? ' (빠른 정답 보너스)' : ''}</div>
+        <div class="qf-good">${TT('✓ 정답!')} +${pts}${TT('점')}${took <= state.cfg.fastBonusSec ? TT(' (빠른 정답 보너스)') : ''}</div>
         <div class="qf-exp">${q.explanation}</div>
       `;
     } else {
@@ -800,7 +804,7 @@
       quiz.wrong.push({ q: q.q, ans: ansLabel });
       SFX.miss();
       document.getElementById('quizFeedback').innerHTML = `
-        <div class="qf-bad">${pick === null ? '⏰ 시간 초과' : '✗ 오답'} — 정답: <strong>${ansLabel}</strong></div>
+        <div class="qf-bad">${pick === null ? TT('⏰ 시간 초과') : TT('✗ 오답')} — ${TT('정답:')} <strong>${ansLabel}</strong></div>
         <div class="qf-exp">${q.explanation}</div>
       `;
     }
@@ -826,8 +830,8 @@
         ul.className = 'card';
         ul.style.cssText = 'margin-top:1rem; text-align:left; font-size:.85rem;';
         ul.innerHTML = `
-          <div style="font-family:'Orbitron'; color:var(--err); margin-bottom:.4rem;">⚠ 틀린 문제 (${quiz.wrong.length})</div>
-          ${quiz.wrong.map(w => `<div style="margin-bottom:.4rem;"><span class="muted">Q.</span> ${w.q}<br><span style="color:var(--ok)">정답: ${w.ans}</span></div>`).join('')}
+          <div style="font-family:'Orbitron'; color:var(--err); margin-bottom:.4rem;">${TT('⚠ 틀린 문제')} (${quiz.wrong.length})</div>
+          ${quiz.wrong.map(w => `<div style="margin-bottom:.4rem;"><span class="muted">Q.</span> ${w.q}<br><span style="color:var(--ok)">${TT('정답:')} ${w.ans}</span></div>`).join('')}
         `;
         stats.parentNode.insertBefore(ul, stats.nextSibling);
       }
@@ -838,7 +842,7 @@
   }
 
   document.getElementById('quizQuit').addEventListener('click', () => {
-    if (!confirm('정말 게임을 종료하시겠습니까?')) return;
+    if (!confirm(TT('정말 게임을 종료하시겠습니까?'))) return;
     if (quiz.timer) { clearInterval(quiz.timer); quiz.timer = null; }
     endQuiz();
   });
@@ -915,7 +919,7 @@
       ads.score += pts;
       SFX.hit(2);
       document.getElementById('adsFeedback').innerHTML = `
-        <div class="ads-good">✓ 정답! +${pts}점${ads.hintUsed ? ' (힌트 사용)' : ''}</div>
+        <div class="ads-good">${TT('✓ 정답!')} +${pts}${TT('점')}${ads.hintUsed ? TT(' (힌트 사용)') : ''}</div>
         <div>${s.explanation}</div>
       `;
     } else {
@@ -924,7 +928,7 @@
       if (cBtn) cBtn.classList.add('absorbed');
       SFX.miss();
       document.getElementById('adsFeedback').innerHTML = `
-        <div class="ads-bad">✗ 오답 — 정답은 <strong>${s.gases[s.answer]}</strong></div>
+        <div class="ads-bad">${TT('✗ 오답')} — ${TT('정답은')} <strong>${s.gases[s.answer]}</strong></div>
         <div>${s.explanation}</div>
       `;
     }
@@ -951,7 +955,7 @@
     b.disabled = true; b.style.opacity = '0.5';
   });
   document.getElementById('adsQuit').addEventListener('click', () => {
-    if (confirm('정말 게임을 종료하시겠습니까?')) endAdsorption();
+    if (confirm(TT('정말 게임을 종료하시겠습니까?'))) endAdsorption();
   });
   document.getElementById('adsMute').addEventListener('click', () => {
     SFX.setMuted(!SFX.muted);
@@ -1078,7 +1082,7 @@
   }
 
   document.getElementById('fcQuit').addEventListener('click', () => {
-    if (confirm('정말 게임을 종료하시겠습니까?')) endFlashcard();
+    if (confirm(TT('정말 게임을 종료하시겠습니까?'))) endFlashcard();
   });
   document.getElementById('fcMute').addEventListener('click', () => {
     SFX.setMuted(!SFX.muted);

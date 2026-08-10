@@ -60,6 +60,7 @@
   }
 
   function renderNav() {
+    injectLangCss();
     // Android 15 엣지투엣지 강제 적용 대응: viewport-fit=cover 보장
     let vp = document.querySelector('meta[name="viewport"]');
     if (vp && !vp.content.includes('viewport-fit')) {
@@ -77,7 +78,10 @@
         <ul id="navList">
           ${PAGES.map(p => `<li><a href="${p.href}" class="${p.href === here ? 'active' : ''}" data-i18n="${p.key}">${p.label}</a></li>`).join('')}
         </ul>
-        <button class="lang-toggle" id="langToggle" aria-label="Language / 언어">EN</button>
+        <div class="lang-seg" id="langSeg" role="group" aria-label="Language / 언어">
+          <button type="button" class="lang-seg-btn" data-lang="ko">한국어</button>
+          <button type="button" class="lang-seg-btn" data-lang="en">EN</button>
+        </div>
         <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">☀</button>
         <button class="ham" aria-label="메뉴 열기">☰</button>
       </div>
@@ -92,16 +96,48 @@
     btn.addEventListener('click', toggleTheme);
     refreshToggleIcon();
 
-    // language toggle — the nav is injected after i18n.js's initial pass,
-    // so nav.js owns the binding and triggers a re-translate itself.
-    const langBtn = nav.querySelector('#langToggle');
-    if (langBtn && window.I18N && typeof I18N.toggle === 'function') {
-      langBtn.addEventListener('click', () => I18N.toggle());
-    } else if (langBtn) {
-      langBtn.style.display = 'none';   // hide if i18n.js isn't loaded
+    // language selector (한국어 / EN segmented control). The nav is injected
+    // after i18n.js's initial pass, so nav.js owns the wiring.
+    const seg = nav.querySelector('#langSeg');
+    if (seg && window.I18N && typeof I18N.setLang === 'function') {
+      seg.querySelectorAll('.lang-seg-btn').forEach(b => {
+        b.addEventListener('click', () => I18N.setLang(b.dataset.lang));
+      });
+      updateLangSeg();
+    } else if (seg) {
+      seg.style.display = 'none';   // hide if i18n.js isn't loaded
     }
-    // translate the freshly-built nav (also sets #langToggle's label)
+    // translate the freshly-built nav
     i18nApply();
+  }
+
+  // reflect the active language on the segmented control
+  function updateLangSeg() {
+    const seg = document.getElementById('langSeg');
+    if (!seg || !window.I18N) return;
+    const cur = window.I18N.lang;
+    seg.querySelectorAll('.lang-seg-btn').forEach(b => {
+      const on = b.dataset.lang === cur;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  // monochrome styling for the selector (injected once; no CSS-file edit needed)
+  function injectLangCss() {
+    if (document.getElementById('mofLangSegCss')) return;
+    const st = document.createElement('style');
+    st.id = 'mofLangSegCss';
+    st.textContent =
+      '.lang-seg{display:inline-flex;align-items:stretch;border:1px solid var(--border,#334155);' +
+      'border-radius:8px;overflow:hidden;margin-right:.45rem;font-family:inherit;}' +
+      '.lang-seg-btn{appearance:none;-webkit-appearance:none;background:transparent;border:none;' +
+      'cursor:pointer;padding:.3rem .6rem;font-size:.78rem;font-weight:600;line-height:1;' +
+      'color:var(--txm,#94a3b8);transition:background .15s,color .15s;}' +
+      '.lang-seg-btn + .lang-seg-btn{border-left:1px solid var(--border,#334155);}' +
+      '.lang-seg-btn:hover{color:var(--tx,#e5e7eb);}' +
+      '.lang-seg-btn.active{background:var(--tx,#e5e7eb);color:var(--card,#0b1120);}';
+    document.head.appendChild(st);
   }
 
   function renderFooter() {
@@ -275,6 +311,7 @@
   // when the language changes, refresh bits that are set imperatively
   // (the theme button's emoji stays, but its aria-label is localized)
   document.addEventListener('i18n:changed', refreshToggleIcon);
+  document.addEventListener('i18n:changed', updateLangSeg);
 
   document.addEventListener('DOMContentLoaded', () => {
     renderNav();
