@@ -831,7 +831,7 @@
         ul.style.cssText = 'margin-top:1rem; text-align:left; font-size:.85rem;';
         ul.innerHTML = `
           <div style="font-family:'Orbitron'; color:var(--err); margin-bottom:.4rem;">${TT('⚠ 틀린 문제')} (${quiz.wrong.length})</div>
-          ${quiz.wrong.map(w => `<div style="margin-bottom:.4rem;"><span class="muted">Q.</span> ${w.q}<br><span style="color:var(--ok)">${TT('정답:')} ${w.ans}</span></div>`).join('')}
+          ${quiz.wrong.map(w => `<div style="margin-bottom:.4rem;"><span class="muted">Q.</span> ${w.q}<br><span style="color:var(--ok)">${TT('정답:')} ${TT(w.ans)}</span></div>`).join('')}
         `;
         stats.parentNode.insertBefore(ul, stats.nextSibling);
       }
