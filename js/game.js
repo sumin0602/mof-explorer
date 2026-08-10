@@ -119,11 +119,14 @@
     window.addEventListener(ev, () => SFX.unlock(), { once: true }));
 
   const MODES = {
-    pore3d:    { name: '3D 기공 헌트', time: 90, penalty: 3, supercell: 2, kind: 'pore3d' },
+    pore3d:    { name: '금속 노드 헌트', time: 90, penalty: 3, supercell: 2, kind: 'pore3d' },
     detective: { name: 'MOF 탐정',     rounds: 5,                          kind: 'detective' },
     quiz:      { name: 'MOF 개념 마스터', kind: 'quiz',       total: 10, perQuestionSec: 20, fastBonusSec: 10 },
     adsorption:{ name: '기체 분리 실험실', kind: 'adsorption', rounds: 5 },
     flashcard: { name: 'MOF 플래시카드',   kind: 'flashcard',  sets: ['초급','중급','심화'] },
+    easy_color: { name: '색깔 탐정',     kind: 'easy', game: 'easy_color', rounds: 8 },
+    easy_parts: { name: '노드 vs 리간드', kind: 'easy', game: 'easy_parts', rounds: 8 },
+    easy_sieve: { name: '통과할까?',     kind: 'easy', game: 'easy_sieve', rounds: 8 },
   };
 
   const RANK_KEY = 'mof_ranking';
@@ -188,6 +191,29 @@
 
   /* ---------- Mode selection ---------- */
   let selectedMode = 'normal';
+  // Relabel the (formerly pore) 3D-hunt UI as a metal-node hunt. Sets Korean
+  // text; i18n.js translates it to English when needed.
+  function patchPore3DUi() {
+    const card = document.querySelector('.mode-card[data-mode="pore3d"]');
+    if (card) {
+      const h = card.querySelector('h4'); if (h) h.textContent = '🎯 금속 노드 헌트';
+      const meta = card.querySelector('.meta');
+      if (meta) meta.innerHTML = '2×2×2 슈퍼셀<br>실제 CIF 구조에서<br>금속 노드 8개 클릭으로 찾기';
+    }
+    const poresHud = document.getElementById('hud3dPores');
+    const lbl = poresHud && poresHud.parentElement ? poresHud.parentElement.querySelector('.lbl') : null;
+    if (lbl) lbl.textContent = '찾은 노드';
+    const hint = document.querySelector('#board3dWrap .viewer-hint');
+    if (hint) hint.innerHTML = '🖱 회전 · 휠 확대 · <strong>금속 노드를 클릭해 찾기!</strong>';
+    document.querySelectorAll('#screenPore3D .muted').forEach(d => {
+      if (d.textContent.indexOf('색상이 다른 기공') !== -1)
+        d.textContent = '💡 색이 있는 큰 구(금속 노드)를 클릭하세요. 연속으로 맞히면 콤보 보너스!';
+    });
+  }
+  patchPore3DUi();
+  injectEasyModeCards();
+  ensureEasyScreen();
+
   document.querySelectorAll('#modeCards .mode-card').forEach(c => {
     // a11y: make the card focusable + announceable to screen readers
     c.setAttribute('role', 'button');
@@ -251,6 +277,216 @@
     if (state.cfg.kind === 'quiz')       return startQuiz();
     if (state.cfg.kind === 'adsorption') return startAdsorption();
     if (state.cfg.kind === 'flashcard')  return startFlashcard();
+    if (state.cfg.kind === 'easy')       return startEasy(state.cfg.game);
+  }
+
+  /* ---------- EASY GAMES (middle-school level) ---------- */
+  const easy = { def:null, idx:0, score:0, combo:0, correct:0, rounds:8, q:null, answered:false, startedAt:0 };
+
+  const EASY_COLORS = [
+    { name:'구리 (Cu)',     color:'#fb923c' },
+    { name:'아연 (Zn)',     color:'#a1a1aa' },
+    { name:'지르코늄 (Zr)', color:'#22d3ee' },
+    { name:'코발트 (Co)',   color:'#4f6ef7' },
+    { name:'마그네슘 (Mg)', color:'#86efac' },
+    { name:'산소 (O)',      color:'#ef4444' },
+    { name:'탄소 (C)',      color:'#64748b' },
+    { name:'질소 (N)',      color:'#60a5fa' },
+  ];
+  const EASY_PARTS = [
+    { text:'구리·아연 같은 금속 이온', ans:'node' },
+    { text:'BTC·BDC 같은 막대 모양 유기 분자', ans:'linker' },
+    { text:'구조의 모서리 역할을 하는 금속 클러스터', ans:'node' },
+    { text:'금속 노드 사이를 연결하는 유기 분자', ans:'linker' },
+    { text:'Zn₄O 클러스터 (MOF-5의 중심)', ans:'node' },
+    { text:'테레프탈산(BDC) 분자', ans:'linker' },
+    { text:'지르코늄 6개로 된 클러스터', ans:'node' },
+    { text:'이미다졸 링커', ans:'linker' },
+  ];
+  const EASY_SIEVE = [
+    { pore:9,   mol:'물 (H₂O)',         sz:2.8 },
+    { pore:3.4, mol:'벤젠',             sz:5.8 },
+    { pore:12,  mol:'이산화탄소 (CO₂)', sz:3.3 },
+    { pore:5,   mol:'이부프로펜',       sz:10  },
+    { pore:8,   mol:'메탄 (CH₄)',       sz:3.8 },
+    { pore:3,   mol:'질소 (N₂)',        sz:3.6 },
+    { pore:29,  mol:'비타민C',          sz:8   },
+    { pore:4,   mol:'수소 (H₂)',        sz:2.9 },
+  ];
+  function easyShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+  function easyPick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+  const EASY_GAMES = {
+    easy_color: {
+      title: '색깔 탐정',
+      make() {
+        const t = easyPick(EASY_COLORS);
+        const opts = easyShuffle([t, ...easyShuffle(EASY_COLORS.filter(x=>x!==t)).slice(0,3)]);
+        return {
+          stage: `<div style="width:96px;height:96px;border-radius:50%;margin:0 auto;background:${t.color};box-shadow:0 0 24px ${t.color}99;border:3px solid rgba(255,255,255,0.25);"></div>`,
+          prompt: '이 색깔은 어떤 원소일까요?',
+          choices: opts.map(o=>({ label:o.name, correct:o===t })),
+          explain: '각 원소는 3D 뷰어에서 고유한 색으로 표시돼요.',
+        };
+      },
+    },
+    easy_parts: {
+      title: '노드 vs 리간드',
+      make() {
+        const it = easyPick(EASY_PARTS);
+        return {
+          stage: `<div style="font-size:1.15rem;font-weight:600;padding:0.9rem 1rem;background:rgba(96,165,250,0.10);border:1px solid var(--border);border-radius:12px;">${it.text}</div>`,
+          prompt: '이것은 무엇일까요?',
+          choices: [
+            { label:'🟠 금속 노드', correct: it.ans==='node' },
+            { label:'🔗 유기 리간드', correct: it.ans==='linker' },
+          ],
+          explain: '금속 이온·클러스터는 노드, 유기 분자는 리간드예요.',
+        };
+      },
+    },
+    easy_sieve: {
+      title: '통과할까?',
+      make() {
+        const it = easyPick(EASY_SIEVE);
+        const pass = it.sz < it.pore;
+        return {
+          stage: `<div style="display:flex;gap:0.8rem;justify-content:center;align-items:center;flex-wrap:wrap;">`
+               + `<div style="padding:0.6rem 0.9rem;border-radius:12px;background:rgba(34,211,238,0.12);border:1px solid var(--border);">${TT('기공 크기')}<br><strong style="font-size:1.3rem;">${it.pore} Å</strong></div>`
+               + `<div style="font-size:1.4rem;">↔</div>`
+               + `<div style="padding:0.6rem 0.9rem;border-radius:12px;background:rgba(251,146,60,0.12);border:1px solid var(--border);">${TT(it.mol)}<br><strong style="font-size:1.3rem;">~${it.sz} Å</strong></div>`
+               + `</div>`,
+          prompt: '이 분자가 기공을 통과할 수 있을까요?',
+          choices: [
+            { label:'⭕ 통과', correct: pass },
+            { label:'❌ 막힘', correct: !pass },
+          ],
+          explain: '분자가 기공보다 작으면 통과, 크면 막혀요.',
+        };
+      },
+    },
+  };
+
+  function ensureEasyScreen() {
+    if (document.getElementById('screenEasy')) return;
+    const sec = document.createElement('section');
+    sec.className = 'screen';
+    sec.id = 'screenEasy';
+    sec.innerHTML =
+      '<div class="quiz-hud">'
+      + '<div class="score-box"><div class="num" id="easyScore">0</div><div class="lbl">SCORE</div></div>'
+      + '<div class="hud-stat"><div class="num" id="easyProg">1 / 8</div><div class="lbl">진행</div></div>'
+      + '<button class="btn btn-ghost" id="easyMute" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="사운드 켜기/끄기">🔊</button>'
+      + '<button class="btn btn-ghost" id="easyQuit" style="font-size:0.8rem; padding:0.45rem 0.7rem;" aria-label="게임 나가기">나가기</button>'
+      + '</div>'
+      + '<div class="quiz-card">'
+      + '<div class="quiz-type-badge" id="easyBadge"></div>'
+      + '<div id="easyStage" style="text-align:center; margin:0.6rem 0 1rem;"></div>'
+      + '<h2 class="quiz-question" id="easyQ" style="font-size:1.15rem;"></h2>'
+      + '<div class="quiz-mc-buttons" id="easyChoices"></div>'
+      + '<div class="quiz-feedback" id="easyFeedback"></div>'
+      + '</div>';
+    document.getElementById('screenQuiz').parentElement.appendChild(sec);
+    if (!screens.includes('screenEasy')) screens.push('screenEasy');
+    document.getElementById('easyQuit').addEventListener('click', () => {
+      if (confirm(TT('정말 게임을 종료하시겠습니까?'))) endEasy();
+    });
+    document.getElementById('easyMute').addEventListener('click', () => {
+      SFX.setMuted(!SFX.muted);
+      document.getElementById('easyMute').textContent = SFX.muted ? '🔇' : '🔊';
+      if (!SFX.muted) SFX.hit(1);
+    });
+  }
+
+  function injectEasyModeCards() {
+    const wrap = document.getElementById('modeCards');
+    if (!wrap || wrap.querySelector('[data-mode="easy_color"]')) return;
+    [
+      { mode:'easy_color', icon:'🎨', title:'색깔 탐정',      meta:'원소마다 색이 달라요<br>색을 보고 원소 맞히기<br>중학생 추천 · 쉬움' },
+      { mode:'easy_parts', icon:'🧩', title:'노드 vs 리간드', meta:'MOF의 두 조각<br>노드일까 리간드일까?<br>중학생 추천 · 쉬움' },
+      { mode:'easy_sieve', icon:'🚪', title:'통과할까?',      meta:'기공보다 작으면 통과!<br>분자가 통과할지 O/X<br>중학생 추천 · 쉬움' },
+    ].forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'mode-card';
+      d.setAttribute('data-mode', c.mode);
+      d.innerHTML = `<div class="icon">${c.icon}</div><h4>${c.title}</h4><div class="meta">${c.meta}</div>`;
+      wrap.appendChild(d);
+    });
+    document.querySelectorAll('#screenTitle div').forEach(el => {
+      const t = el.textContent.trim();
+      if (t.indexOf('학습 게임') !== -1 && t.indexOf('가지') !== -1 && el.children.length === 0)
+        el.textContent = '— 8가지 학습 게임 —';
+    });
+  }
+
+  function startEasy(gameKey) {
+    ensureEasyScreen();
+    easy.def = EASY_GAMES[gameKey];
+    if (!easy.def) return;
+    easy.idx = 0; easy.score = 0; easy.combo = 0; easy.correct = 0;
+    easy.rounds = 8; easy.startedAt = Date.now();
+    document.getElementById('easyScore').textContent = '0';
+    document.getElementById('easyBadge').textContent = easy.def.title;
+    show('screenEasy');
+    nextEasyQuestion();
+  }
+
+  function nextEasyQuestion() {
+    if (easy.idx >= easy.rounds) return endEasy();
+    easy.answered = false;
+    const q = easy.def.make();
+    easy.q = q;
+    document.getElementById('easyProg').textContent = (easy.idx + 1) + ' / ' + easy.rounds;
+    document.getElementById('easyStage').innerHTML = q.stage || '';
+    document.getElementById('easyQ').textContent = q.prompt;
+    const fb = document.getElementById('easyFeedback');
+    fb.classList.remove('show'); fb.innerHTML = '';
+    const box = document.getElementById('easyChoices');
+    box.innerHTML = q.choices.map((c,i)=>`<button class="quiz-mc-btn" data-i="${i}">${c.label}</button>`).join('');
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => answerEasy(parseInt(b.dataset.i,10))));
+  }
+
+  function answerEasy(i) {
+    if (easy.answered) return;
+    easy.answered = true;
+    const q = easy.q;
+    const isRight = !!q.choices[i].correct;
+    const box = document.getElementById('easyChoices');
+    box.querySelectorAll('button').forEach((b,j) => {
+      b.disabled = true;
+      if (q.choices[j].correct) { b.style.borderColor = '#22c55e'; b.style.background = 'rgba(34,197,94,0.14)'; }
+      else if (j===i)          { b.style.borderColor = '#ef4444'; b.style.opacity = '0.85'; }
+      else                     { b.style.opacity = '0.5'; }
+    });
+    const fb = document.getElementById('easyFeedback');
+    if (isRight) {
+      easy.correct++; easy.combo++;
+      const pts = 10 * comboMultiplier(easy.combo);
+      easy.score += pts;
+      SFX.hit(easy.combo);
+      if (easy.combo >= 2 && easy.combo <= 5) SFX.combo(easy.combo);
+      fb.innerHTML = `<div class="qf-good">${TT('✓ 정답!')} +${pts}${TT('점')}</div>` + (q.explain ? `<div class="qf-exp">${q.explain}</div>` : '');
+    } else {
+      easy.combo = 0;
+      SFX.miss();
+      fb.innerHTML = `<div class="qf-bad">${TT('✗ 오답')}</div>` + (q.explain ? `<div class="qf-exp">${q.explain}</div>` : '');
+    }
+    fb.classList.add('show');
+    document.getElementById('easyScore').textContent = easy.score;
+    easy.idx++;
+    setTimeout(() => {
+      const sc = document.getElementById('screenEasy');
+      if (sc && sc.classList.contains('active')) nextEasyQuestion();
+    }, 1500);
+  }
+
+  function endEasy() {
+    const elapsed = Math.round((Date.now() - easy.startedAt) / 1000);
+    const acc = easy.rounds ? Math.round((easy.correct / easy.rounds) * 100) : 0;
+    const grade = acc >= 90 ? 'S' : acc >= 70 ? 'A' : acc >= 40 ? 'B' : 'C';
+    setTimeout(() => SFX.win(grade), 150);
+    state.score = easy.score;
+    showResult({ score: easy.score, acc, elapsed, grade });
   }
 
   /* ---------- Result ---------- */
@@ -372,54 +608,56 @@
     if (pore3d.viewer) { try { pore3d.viewer.dispose(); } catch (_) {} pore3d.viewer = null; }
     document.getElementById('pore3dMount').innerHTML = '';
 
+    pore3d.needed = 8;          // find any 8 distinct metal nodes
+    pore3d.found = 0;
+    pore3d.clicked = new Set();
+
+    function pore3dMiss() {
+      if (!pore3d.running) return;
+      pore3d.attempts++;
+      pore3d.combo = 0;
+      if (state.cfg.penalty) pore3d.score = Math.max(0, pore3d.score - state.cfg.penalty);
+      SFX.miss();
+      const bw = document.getElementById('board3dWrap');
+      bw.classList.remove('shake'); void bw.offsetWidth; bw.classList.add('shake');
+      updatePore3DHud();
+    }
+
     pore3d.viewer = window.MOFViewer.create({
       mount: document.getElementById('pore3dMount'),
-      showPores: true,
+      showPores: false,          // node hunt: no pores, click the metal nodes
       showBonds: true,
+      showAtoms: true,
       autoRotate: false,
       supercell: state.cfg.supercell || 2,
-      hiddenPores: true,        // pores exist but invisible until found
-      poreClickRadius: 1.2,
-      onPoreClick: () => {},     // pores can't be directly hit while hidden
-      onAtomClick: () => {},
-      onEmptyClick: ({ nearestPore }) => {
+      onPoreClick: () => {},
+      onEmptyClick: () => pore3dMiss(),
+      onAtomClick: ({ index, isMetal }) => {
         if (!pore3d.running) return;
+        if (!isMetal) { pore3dMiss(); return; }        // a non-metal atom → miss
+        if (pore3d.clicked.has(index)) return;         // this node already found
+        // HIT — a new metal node
+        pore3d.clicked.add(index);
+        pore3d.viewer.markAtom(index);                 // highlight it gold
         pore3d.attempts++;
-        if (nearestPore < 0) {
-          // MISS
-          pore3d.combo = 0;
-          if (state.cfg.penalty) pore3d.score = Math.max(0, pore3d.score - state.cfg.penalty);
-          SFX.miss();
-          const bw = document.getElementById('board3dWrap');
-          bw.classList.remove('shake'); void bw.offsetWidth; bw.classList.add('shake');
-          updatePore3DHud();
-          return;
-        }
-        const p = pore3d.pores[nearestPore];
-        if (!p || p.found) return;
-        // HIT
-        p.found = true;
-        pore3d.viewer.revealPore(nearestPore);
         pore3d.hits++;
+        pore3d.found++;
         pore3d.combo++;
-        const bucket = window.MOFViewer.poreColor(p.radius).bucket;
-        const basePts = 10 + bucket * 5;
-        const mult = comboMultiplier(pore3d.combo);
-        const pts = basePts * mult;
+        const pts = 15 * comboMultiplier(pore3d.combo);
         pore3d.score += pts;
         SFX.hit(pore3d.combo);
         if (pore3d.combo >= 2 && pore3d.combo <= 5) SFX.combo(pore3d.combo);
         updatePore3DHud();
-        if (pore3d.pores.every(p => p.found)) {
-          // win — time bonus
-          if (pore3d.timeLeft > 0) pore3d.score += pore3d.timeLeft * 2;
+        if (pore3d.found >= pore3d.needed) {
+          if (pore3d.timeLeft > 0) pore3d.score += pore3d.timeLeft * 2;   // time bonus
           endPore3D(true);
         }
       },
-      onReady: ({ pores }) => {
-        pore3d.pores = pores.map(p => ({ position: p.position, radius: p.radius, found: false }));
-        document.getElementById('hud3dPores').textContent = pore3d.pores.length;
-        renderPore3DLegend(pore3d.pores);
+      onReady: () => {
+        const metals = pore3d.viewer.metalAtoms();
+        pore3d.needed = Math.min(8, metals.length || 8);
+        document.getElementById('hud3dPores').textContent = `0 / ${pore3d.needed}`;
+        renderPore3DLegend();
         loading.style.display = 'none';
         pore3d.running = true;
         startPore3DTimer();
@@ -431,32 +669,19 @@
     });
   }
 
-  function renderPore3DLegend(pores) {
+  function renderPore3DLegend() {
     const el = document.getElementById('pore3dLegend');
-    if (!el || !window.MOFViewer) return;
-    const buckets = new Map();
-    pores.forEach(p => {
-      const c = window.MOFViewer.poreColor(p.radius);
-      const cur = buckets.get(c.bucket) || { hex: c.hex, label: c.label, count: 0 };
-      cur.count++;
-      buckets.set(c.bucket, cur);
-    });
-    const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+    if (!el) return;
     el.innerHTML = `
-      <span style="font-size:0.7rem; color:var(--txm); font-family:'Orbitron';">숨겨진 기공:</span>
-      ${sorted.map(([_, b]) => `
-        <span class="pl-item">
-          <span class="pl-dot" style="background:${b.hex}; color:${b.hex};"></span>
-          <span style="color:var(--txm);">${b.label} · <strong style="color:${b.hex};">${b.count}개</strong></span>
-        </span>
-      `).join('')}
-    `;
+      <span class="pl-item">
+        <span class="pl-dot" style="background:#facc15; color:#facc15;"></span>
+        <span style="color:var(--txm);">${TT('찾을 금속 노드')}: <strong style="color:#facc15;">${pore3d.needed}</strong></span>
+      </span>`;
   }
 
   function updatePore3DHud() {
     document.getElementById('hud3dScore').textContent = pore3d.score;
-    const left = pore3d.pores.filter(p => !p.found).length;
-    document.getElementById('hud3dPores').textContent = left;
+    document.getElementById('hud3dPores').textContent = `${pore3d.found} / ${pore3d.needed}`;
     const cb = document.getElementById('combo3d');
     if (pore3d.combo >= 2) {
       cb.classList.add('show');

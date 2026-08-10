@@ -144,7 +144,7 @@
     if (document.querySelector('.footer')) return;
     const f = document.createElement('footer');
     f.className = 'footer';
-    f.innerHTML = `<span data-i18n="footer.text">© 2026 MOF Explorer · 고등학생을 위한 나노 과학 교육 플랫폼</span>`;
+    f.innerHTML = `<span data-i18n="footer.text">© 2026 MOF Explorer · 중·고등학생을 위한 나노 과학 교육 플랫폼</span>`;
     document.body.appendChild(f);
     i18nApply();
   }
