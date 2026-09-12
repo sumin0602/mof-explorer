@@ -59,6 +59,39 @@
     return path === '' ? 'index.html' : path;
   }
 
+  // Android edge-to-edge (targetSdk 35/36) lets app content slide under the
+  // system status bar, so the fixed top nav gets clipped by the clock/battery.
+  // Measure the real status-bar height (safe-area-inset-top) and push the nav
+  // — and, if it's fixed, the body — down by exactly that much. On web mobile
+  // the inset is 0, so nothing changes there.
+  function applyTopSafeArea(nav) {
+    const measure = () => {
+      const probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;';
+      document.body.appendChild(probe);
+      const inset = Math.round(probe.getBoundingClientRect().height);
+      probe.remove();
+      return inset;
+    };
+    // remember the CSS base padding so re-applying (orientation change) doesn't stack
+    if (nav._basePadTop == null) nav._basePadTop = parseFloat(getComputedStyle(nav).paddingTop) || 0;
+    if (document.body._basePadTop == null) document.body._basePadTop = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+
+    const apply = () => {
+      const inset = measure();
+      nav.style.paddingTop = (nav._basePadTop + inset) + 'px';
+      // when the nav is taken out of flow, the body needs the same offset so
+      // page content clears the now-taller bar
+      if (getComputedStyle(nav).position === 'fixed') {
+        document.body.style.paddingTop = (document.body._basePadTop + inset) + 'px';
+      }
+    };
+    apply();
+    // re-apply on rotation / viewport changes
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', apply);
+  }
+
   function renderNav() {
     injectLangCss();
     // Android 15 엣지투엣지 강제 적용 대응: viewport-fit=cover 보장
@@ -87,6 +120,7 @@
       </div>
     `;
     document.body.insertBefore(nav, document.body.firstChild);
+    applyTopSafeArea(nav);
 
     const ham = nav.querySelector('.ham');
     const list = nav.querySelector('#navList');
